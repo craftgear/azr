@@ -1,0 +1,160 @@
+.page {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* テーマ設定 */
+.page-light {
+  background-color: #ffffff;
+  color: #333333;
+}
+
+.page-dark {
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+}
+
+/* 横書きページ設定 */
+.page-horizontal {
+  writing-mode: horizontal-tb;
+  padding: 2rem;
+}
+
+.page-horizontal .page-content {
+  max-width: 800px;
+  margin: 0 auto;
+  height: 100%;
+  column-fill: auto;
+  column-gap: 3rem;
+}
+
+/* 縦書きページ設定 */
+.page-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  padding: 2rem;
+}
+
+.page-vertical .page-content {
+  height: 100%;
+  width: 100%;
+  column-fill: auto;
+  column-gap: 3rem;
+}
+
+/* マルチカラムレイアウト（ページネーション用） */
+.page-horizontal .page-content {
+  columns: 1;
+}
+
+.page-vertical .page-content {
+  /* 縦書きの場合は高さに基づいてカラム分割 */
+  height: calc(100% - 4rem);
+  column-width: calc(100vh - 4rem);
+}
+
+/* ルビサイズ設定の継承 */
+.ruby-small ruby rt {
+  font-size: 0.35em;
+}
+
+.ruby-normal ruby rt {
+  font-size: 0.5em;
+}
+
+.ruby-large ruby rt {
+  font-size: 0.7em;
+}
+
+/* 縦書き時の要素調整 */
+.page-vertical ruby {
+  ruby-position: over;
+}
+
+/* 傍点 */
+.page .emphasis-dots {
+  position: relative;
+  text-emphasis: '﹅';
+  text-emphasis-position: over right;
+  -webkit-text-emphasis: '﹅';
+  -webkit-text-emphasis-position: over right;
+}
+
+/* 縦書き時の傍点位置調整 */
+.page-vertical .emphasis-dots {
+  text-emphasis-position: over right;
+  -webkit-text-emphasis-position: over right;
+}
+
+/* 横書き時の傍点位置調整 */
+.page-horizontal .emphasis-dots {
+  text-emphasis-position: over;
+  -webkit-text-emphasis-position: over;
+}
+
+/* テキストサイズ */
+.page .text-size-small {
+  font-size: 0.85em;
+}
+
+.page .text-size-large {
+  font-size: 1.2em;
+}
+
+/* 見出し */
+.page .heading-large {
+  font-size: 1.8em;
+  font-weight: bold;
+  margin: 1.5em 0;
+  text-align: center;
+}
+
+.page .heading-medium {
+  font-size: 1.4em;
+  font-weight: bold;
+  margin: 1.2em 0;
+  text-align: center;
+}
+
+.page .heading-small {
+  font-size: 1.2em;
+  font-weight: bold;
+  margin: 1em 0;
+}
+
+/* 縦書き時の見出し調整 */
+.page-vertical .heading-large,
+.page-vertical .heading-medium,
+.page-vertical .heading-small {
+  text-align: inherit;
+  margin: 0 1em;
+}
+
+/* ブロック字下げ */
+.page .block-indent {
+  display: block;
+  margin: 0.5em 0;
+}
+
+/* 縦書き時のブロック字下げ */
+.page-vertical .block-indent {
+  margin: 0;
+  padding-top: var(--indent-size, 2em);
+  padding-left: 0;
+}
+
+/* 特殊文字 */
+.page .special-char {
+  cursor: help;
+  border-bottom: 1px dotted currentColor;
+  position: relative;
+}
+
+/* ダッシュライン */
+.page-vertical .dash-line {
+  text-orientation: sideways;
+  letter-spacing: -0.1em;
+}

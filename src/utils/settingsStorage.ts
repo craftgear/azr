@@ -8,7 +8,8 @@ const DEFAULT_SETTINGS: ReaderSettings = {
   lineHeight: 1.8,
   theme: 'light',
   padding: 2,
-  rubySize: 'normal'
+  rubySize: 'normal',
+  paginationMode: true
 }
 
 export const settingsStorage = {

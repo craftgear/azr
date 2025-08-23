@@ -39,16 +39,39 @@ class LibraryStorage {
     })
   }
 
-  // 本を追加
+  // 本を追加または更新（重複チェック付き）
   async addBook(document: ParsedAozoraDocument, metadata?: Partial<BookMetadata>): Promise<string> {
     if (!this.db) await this.init()
 
+    const title = metadata?.title || this.extractTitle(document) || 'Untitled'
+    
+    // 同じタイトルの本が既に存在するかチェック
+    const existingBook = await this.findBookByTitle(title)
+    
+    if (existingBook) {
+      // 既存の本を更新
+      const updatedBook: LibraryBook = {
+        ...existingBook,
+        document,
+        metadata: {
+          ...existingBook.metadata,
+          lastReadDate: new Date(),
+          fileSize: JSON.stringify(document).length,
+          thumbnail: this.generateThumbnail(document)
+        }
+      }
+      
+      await this.updateBook(existingBook.id, updatedBook)
+      return existingBook.id
+    }
+
+    // 新規追加
     const id = this.generateId()
     const book: LibraryBook = {
       id,
       document,
       metadata: {
-        title: metadata?.title || this.extractTitle(document) || 'Untitled',
+        title,
         author: metadata?.author || this.extractAuthor(document),
         addedDate: new Date(),
         lastReadDate: undefined,
@@ -72,6 +95,21 @@ class LibraryStorage {
 
       request.onsuccess = () => resolve(id)
       request.onerror = () => reject(new Error('Failed to add book'))
+    })
+  }
+
+  // タイトルで本を検索
+  private async findBookByTitle(title: string): Promise<LibraryBook | null> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_NAME], 'readonly')
+      const store = transaction.objectStore(STORE_NAME)
+      const index = store.index('title')
+      const request = index.get(title)
+
+      request.onsuccess = () => resolve(request.result || null)
+      request.onerror = () => reject(new Error('Failed to find book by title'))
     })
   }
 

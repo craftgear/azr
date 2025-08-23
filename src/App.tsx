@@ -19,6 +19,7 @@ const App: React.FC = () => {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
   const [initialScrollPosition, setInitialScrollPosition] = useState(0)
+  const [savedNotification, setSavedNotification] = useState(false)
   const [settings, setSettings] = useState<ReaderSettings>({
     verticalMode: true,
     fontSize: 16,
@@ -36,7 +37,23 @@ const App: React.FC = () => {
       const parsedDocument = parseAozoraText(text)
       setDocument(parsedDocument)
       setFileName(file.name)
-      setCurrentBookId(null) // 新しいファイルを開いたのでライブラリのIDをクリア
+      
+      // 自動的にライブラリに保存
+      try {
+        const bookId = await libraryStorage.addBook(parsedDocument, {
+          title: file.name.replace(/\.[^/.]+$/, '') || 'Untitled'
+        })
+        setCurrentBookId(bookId)
+        console.log('自動保存完了:', bookId)
+        
+        // 保存完了通知を表示
+        setSavedNotification(true)
+        setTimeout(() => setSavedNotification(false), 3000)
+      } catch (saveErr) {
+        console.error('自動保存エラー:', saveErr)
+        // 保存に失敗してもドキュメントは表示する
+        setCurrentBookId(null)
+      }
     } catch (err) {
       setError('ファイルの読み込みに失敗しました。')
       console.error('ファイル読み込みエラー:', err)
@@ -45,20 +62,7 @@ const App: React.FC = () => {
     }
   }
 
-  const handleSaveToLibrary = async () => {
-    if (!document) return
-    
-    try {
-      const bookId = await libraryStorage.addBook(document, {
-        title: fileName?.replace(/\.[^/.]+$/, '') || 'Untitled'
-      })
-      setCurrentBookId(bookId)
-      alert('ライブラリに保存しました')
-    } catch (err) {
-      console.error('保存エラー:', err)
-      alert('保存に失敗しました')
-    }
-  }
+  // 手動保存機能は削除（自動保存のため不要）
 
   const handleBookSelect = async (book: LibraryBook) => {
     setDocument(book.document)
@@ -101,15 +105,6 @@ const App: React.FC = () => {
           </button>
           {document && (
             <>
-              {!currentBookId && (
-                <button
-                  className="app-button"
-                  onClick={handleSaveToLibrary}
-                  aria-label="ライブラリに保存"
-                >
-                  💾 保存
-                </button>
-              )}
               <button
                 className="app-button"
                 onClick={() => setIsSettingsOpen(true)}
@@ -140,6 +135,12 @@ const App: React.FC = () => {
           <div className="app-error">
             <p>{error}</p>
             <button onClick={() => setError(null)}>閉じる</button>
+          </div>
+        )}
+
+        {savedNotification && (
+          <div className="app-notification">
+            📚 ライブラリに保存しました
           </div>
         )}
 

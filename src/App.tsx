@@ -6,6 +6,7 @@ import { Library } from './components/Library/Library'
 import { parseAozoraText } from './core/enhancedAozoraParser'
 import { readTextFile } from './utils/fileHelpers'
 import { libraryStorage } from './core/libraryStorage'
+import { settingsStorage } from './utils/settingsStorage'
 import type { ParsedAozoraDocument } from './types/aozora'
 import type { LibraryBook } from './types/library'
 import './App.css'
@@ -19,13 +20,14 @@ const App: React.FC = () => {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
   const [initialScrollPosition, setInitialScrollPosition] = useState(0)
-  const [settings, setSettings] = useState<ReaderSettings>({
-    verticalMode: true,
-    fontSize: 16,
-    lineHeight: 1.8,
-    theme: 'light',
-    padding: 2
-  })
+  const [settings, setSettings] = useState<ReaderSettings>(() => 
+    settingsStorage.loadSettings()
+  )
+
+  // 設定の変更を保存
+  useEffect(() => {
+    settingsStorage.saveSettings(settings)
+  }, [settings])
 
   // 最後に開いた本を読み込む
   useEffect(() => {

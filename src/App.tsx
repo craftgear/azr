@@ -38,7 +38,7 @@ const App: React.FC = () => {
           if (book) {
             setDocument(book.document)
             setCurrentBookId(book.id)
-            
+
             // タイトルを抽出（底本優先）
             let title: string | undefined
             const textNodes = book.document.nodes.filter(node => node.type === 'text' && 'content' in node)
@@ -50,12 +50,12 @@ const App: React.FC = () => {
                 if (title) break
               }
             }
-            
+
             // フォールバック
             if (!title) {
               title = book.metadata.title || 'Untitled'
             }
-            
+
             setFileName(title)
             setInitialScrollPosition(book.readingProgress.lastPosition || 0)
           }
@@ -66,7 +66,7 @@ const App: React.FC = () => {
         setIsLoading(false)
       }
     }
-    
+
     loadLastBook()
   }, [])
 
@@ -78,41 +78,27 @@ const App: React.FC = () => {
   const handleFileSelect = async (file: File) => {
     setIsLoading(true)
     setError(null)
-    
+
     try {
       const text = await readTextFile(file)
       const parsedDocument = parseAozoraText(text)
       setDocument(parsedDocument)
-      
+
       // ドキュメントからタイトルを抽出
-      let title: string | undefined
-      
-      // 底本情報からタイトルを抽出（最優先）
-      const textNodes = parsedDocument.nodes.filter(node => node.type === 'text' && 'content' in node)
-      for (let i = textNodes.length - 1; i >= 0; i--) {
-        const content = textNodes[i].content as string
-        const match = content.match(/底本：「(.+?)」/)
-        if (match && match[1]) {
-          // 副題などを除去（括弧内のテキストを削除）
-          title = match[1].replace(/[\(（].+?[\)）]/g, '').trim()
-          if (title) break
-        }
-      }
-      
+      let title = libraryStorage.extractTitle(parsedDocument)
+
       // 底本が見つからない場合のフォールバック
       if (!title) {
         // メタデータをチェック
         title = parsedDocument.metadata?.title
-        
-        // 最後の手段としてファイル名を使用
+
         if (!title) {
-          title = file.name.replace(/\.[^/.]+$/, '') || 'Untitled'
+          title = 'Untitled'
         }
       }
-      
-      console.log('抽出されたタイトル:', title)
+
       setFileName(title)
-      
+
       // 自動的にライブラリに保存
       try {
         const bookId = await libraryStorage.addBook(parsedDocument, {
@@ -120,7 +106,6 @@ const App: React.FC = () => {
         })
         setCurrentBookId(bookId)
         saveLastOpenedBook(bookId)
-        console.log('自動保存完了:', bookId)
       } catch (saveErr) {
         console.error('自動保存エラー:', saveErr)
         // 保存に失敗してもドキュメントは表示する
@@ -141,7 +126,7 @@ const App: React.FC = () => {
     setCurrentBookId(book.id)
     saveLastOpenedBook(book.id)
     setIsLibraryOpen(false)
-    
+
     // タイトルを抽出（底本優先）
     let title: string | undefined
     const textNodes = book.document.nodes.filter(node => node.type === 'text' && 'content' in node)
@@ -153,12 +138,12 @@ const App: React.FC = () => {
         if (title) break
       }
     }
-    
+
     // フォールバック
     if (!title) {
       title = book.metadata.title || 'Untitled'
     }
-    
+
     setFileName(title)
     setInitialScrollPosition(book.readingProgress.lastPosition || 0)
   }
@@ -172,7 +157,7 @@ const App: React.FC = () => {
 
   const handleScrollPositionChange = async (position: number) => {
     if (!currentBookId || !document) return
-    
+
     try {
       await libraryStorage.updateReadingProgress(currentBookId, {
         lastPosition: position
@@ -185,7 +170,7 @@ const App: React.FC = () => {
   return (
     <div className={`app app-${settings.theme}`}>
       <header className="app-header">
-        <h1 className="app-title">{fileName || ''}</h1>
+        <h1 className="app-title">{fileName || '青空文庫リーダー'}</h1>
         <div className="app-header-actions">
           <button
             className="app-button"

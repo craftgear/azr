@@ -330,45 +330,55 @@ const processPipeRuby = (state: ParserState): boolean => {
 
 const processNormalRuby = (state: ParserState): boolean => {
   const { text, currentPosition } = state
-  const rubyOpenIndex = text.indexOf('《', currentPosition)
   
-  if (rubyOpenIndex === -1 || rubyOpenIndex !== currentPosition) {
-    // 現在位置にルビ開始がない場合
-    if (rubyOpenIndex > currentPosition) {
-      // 前方にルビがある場合、漢字を探す
-      const possiblePipeIndex = text.lastIndexOf('｜', rubyOpenIndex)
-      if (possiblePipeIndex >= currentPosition) return false
-      
-      const rubyCloseIndex = text.indexOf('》', rubyOpenIndex)
-      if (rubyCloseIndex === -1) return false
-      
-      // ルビの前の漢字を探す
-      let baseStart = rubyOpenIndex - 1
-      while (baseStart >= currentPosition && isJapaneseChar(text[baseStart])) {
-        baseStart--
-      }
-      baseStart++
-      
-      if (baseStart < rubyOpenIndex) {
-        // baseStartより前のテキストを処理
-        if (baseStart > currentPosition) {
-          const beforeText = text.substring(currentPosition, baseStart)
-          processTextSegment(state, beforeText)
+  // 現在位置が《で始まる場合のみ処理
+  if (text[currentPosition] !== '《') {
+    return false
+  }
+  
+  const rubyCloseIndex = text.indexOf('》', currentPosition)
+  if (rubyCloseIndex === -1) return false
+  
+  const reading = text.substring(currentPosition + 1, rubyCloseIndex)
+  
+  // ルビの前の漢字を探す（最大10文字まで遡る）
+  let baseStart = currentPosition - 1
+  let kanjiCount = 0
+  while (baseStart >= 0 && kanjiCount < 10 && isJapaneseChar(text[baseStart])) {
+    baseStart--
+    kanjiCount++
+  }
+  baseStart++
+  
+  if (baseStart < currentPosition) {
+    const base = text.substring(baseStart, currentPosition)
+    
+    // 既に追加されているテキストから漢字部分を削除
+    const currentNodes = state.textSizeStack.length > 0 
+      ? state.textSizeStack[state.textSizeStack.length - 1].nodes
+      : state.blockIndentStack.length > 0
+      ? state.blockIndentStack[state.blockIndentStack.length - 1].nodes
+      : state.nodes
+    
+    // 最後のテキストノードから base を削除
+    if (currentNodes.length > 0 && currentNodes[currentNodes.length - 1].type === 'text') {
+      const lastNode = currentNodes[currentNodes.length - 1] as { type: 'text', content: string }
+      if (lastNode.content.endsWith(base)) {
+        lastNode.content = lastNode.content.substring(0, lastNode.content.length - base.length)
+        if (!lastNode.content) {
+          currentNodes.pop()
         }
-        
-        const base = text.substring(baseStart, rubyOpenIndex)
-        const reading = text.substring(rubyOpenIndex + 1, rubyCloseIndex)
-        
-        addNode(state, {
-          type: 'ruby',
-          base,
-          reading
-        })
-        
-        state.currentPosition = rubyCloseIndex + 1
-        return true
       }
     }
+    
+    addNode(state, {
+      type: 'ruby',
+      base,
+      reading
+    })
+    
+    state.currentPosition = rubyCloseIndex + 1
+    return true
   }
   
   return false
@@ -377,101 +387,12 @@ const processNormalRuby = (state: ParserState): boolean => {
 const processPlainText = (state: ParserState): void => {
   const { text, currentPosition } = state
   
-  // ルビの前の漢字をチェック
-  const nextRubyOpen = text.indexOf('《', currentPosition)
-  if (nextRubyOpen !== -1 && nextRubyOpen > currentPosition) {
-    // パイプがないルビの場合、漢字を探す必要がある
-    const possiblePipeIndex = text.lastIndexOf('｜', nextRubyOpen)
-    if (possiblePipeIndex < currentPosition) {
-      // パイプがないので、漢字を探す
-      let baseStart = nextRubyOpen - 1
-      while (baseStart >= currentPosition && isJapaneseChar(text[baseStart])) {
-        baseStart--
-      }
-      baseStart++
-      
-      if (baseStart < nextRubyOpen) {
-        // baseStartより前のテキストを処理
-        if (baseStart > currentPosition) {
-          const beforeText = text.substring(currentPosition, baseStart)
-          processTextSegment(state, beforeText)
-          state.currentPosition = baseStart
-        }
-        return // ルビ処理は次のループで行われる
-      }
-    }
-  }
-  
-  // 次の特殊文字を探す
-  let nextSpecialChar = text.length
-  const nextPipe = text.indexOf('｜', currentPosition)
-  const nextTag = text.indexOf('［＃', currentPosition)
-  
-  if (nextRubyOpen !== -1) nextSpecialChar = Math.min(nextSpecialChar, nextRubyOpen)
-  if (nextPipe !== -1) nextSpecialChar = Math.min(nextSpecialChar, nextPipe)
-  if (nextTag !== -1) nextSpecialChar = Math.min(nextSpecialChar, nextTag)
-  
-  if (nextSpecialChar > currentPosition) {
-    const content = text.substring(currentPosition, nextSpecialChar)
-    if (content) {
-      processTextSegment(state, content)
-    }
-    state.currentPosition = nextSpecialChar
-  } else {
-    // 1文字だけ進める
-    const char = text[currentPosition]
-    addNode(state, { type: 'text', content: char })
-    state.currentPosition++
-  }
+  // 1文字だけ進める（シンプルに）
+  const char = text[currentPosition]
+  addNode(state, { type: 'text', content: char })
+  state.currentPosition++
 }
 
-const processTextSegment = (state: ParserState, text: string): void => {
-  // テキストセグメント内の特殊タグとルビを再帰的に処理
-  const tempState: ParserState = {
-    nodes: [],
-    currentPosition: 0,
-    text,
-    textSizeStack: [],
-    blockIndentStack: []
-  }
-  
-  while (tempState.currentPosition < tempState.text.length) {
-    // 特殊タグをチェック
-    if (tempState.text[tempState.currentPosition] === '［' && 
-        tempState.text[tempState.currentPosition + 1] === '＃') {
-      if (processSpecialTag(tempState)) {
-        continue
-      }
-    }
-    
-    // ルビをチェック
-    if (processNormalRuby(tempState)) {
-      continue
-    }
-    
-    // 通常テキストを処理
-    const nextSpecial = Math.min(
-      tempState.text.indexOf('［＃', tempState.currentPosition) === -1 ? tempState.text.length : tempState.text.indexOf('［＃', tempState.currentPosition),
-      tempState.text.indexOf('《', tempState.currentPosition) === -1 ? tempState.text.length : tempState.text.indexOf('《', tempState.currentPosition)
-    )
-    
-    if (nextSpecial > tempState.currentPosition) {
-      const content = tempState.text.substring(tempState.currentPosition, nextSpecial)
-      if (content) {
-        addNode(tempState, { type: 'text', content })
-      }
-      tempState.currentPosition = nextSpecial
-    } else {
-      // 1文字進める
-      const char = tempState.text[tempState.currentPosition]
-      addNode(tempState, { type: 'text', content: char })
-      tempState.currentPosition++
-    }
-  }
-  
-  // 処理済みノードを親ステートに追加
-  tempState.nodes.forEach(node => addNode(state, node))
-}
 
 const addNode = (state: ParserState, node: AozoraNode): void => {
   // スタックがある場合はスタックに追加

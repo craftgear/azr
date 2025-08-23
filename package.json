@@ -1,7 +1,7 @@
 {
-  "name": "epub_aozora_reader",
+  "name": "aozora-reader",
   "version": "1.0.0",
-  "description": "",
+  "description": "A web-based reader for Aozora Bunko formatted text files and EPUB files",
   "main": "index.js",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "packageManager": "pnpm@10.12.1",
   "devDependencies": {
     "@testing-library/jest-dom": "^6.8.0",

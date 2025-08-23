@@ -40,7 +40,7 @@ describe('Reader', () => {
       metadata: {}
     }
     const { container } = render(<Reader document={doc} verticalMode={true} />)
-    expect(container.querySelector('.reader-vertical')).toBeDefined()
+    expect(container.querySelector('.page-vertical')).toBeDefined()
   })
 
   it('should apply dark theme class', () => {
@@ -49,7 +49,7 @@ describe('Reader', () => {
       metadata: {}
     }
     const { container } = render(<Reader document={doc} theme="dark" />)
-    expect(container.querySelector('.reader-dark')).toBeDefined()
+    expect(container.querySelector('.page-dark')).toBeDefined()
   })
 
   it('should apply custom font size', () => {
@@ -58,8 +58,8 @@ describe('Reader', () => {
       metadata: {}
     }
     const { container } = render(<Reader document={doc} fontSize={20} />)
-    const reader = container.querySelector('.reader') as HTMLElement
-    expect(reader?.style.fontSize).toBe('20px')
+    const page = container.querySelector('.page') as HTMLElement
+    expect(page?.style.fontSize).toBe('20px')
   })
 
   it('should render multiple nodes', () => {
@@ -72,7 +72,7 @@ describe('Reader', () => {
       metadata: {}
     }
     const { container } = render(<Reader document={doc} />)
-    const content = container.querySelector('.reader-content')
+    const content = container.querySelector('.page-content')
     expect(content?.textContent).toContain('吾輩は')
     expect(container.querySelector('ruby')).toBeDefined()
     expect(content?.textContent).toContain('である。')

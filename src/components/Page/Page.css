@@ -37,8 +37,8 @@
 }
 
 .page-vertical .page-content {
-  height: calc(100% - var(--page-padding, 4rem));
-  width: calc(100% - var(--page-padding, 4rem));
+  height: 100%;
+  width: 100%;
   column-fill: auto;
   column-gap: 3rem;
 }
@@ -50,7 +50,7 @@
 
 .page-vertical .page-content {
   /* 縦書きの場合は高さに基づいてカラム分割 */
-  column-width: calc(100vh - var(--page-padding, 4rem));
+  column-width: 100vh;
 }
 
 /* ルビサイズ設定の継承 */

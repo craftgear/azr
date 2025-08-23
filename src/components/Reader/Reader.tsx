@@ -41,37 +41,106 @@ export const Reader: React.FC<ReaderProps> = ({
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // ページ分割計算
+  // 設定変更前の読書位置を保持
+  const prevTotalPagesRef = useRef(totalPages)
+  const currentPageProgressRef = useRef(0) // 現在のページ進捗を保持
+
+  // 設定が変更されたときに現在の進捗を保存
+  useEffect(() => {
+    if (totalPages > 0) {
+      currentPageProgressRef.current = currentPage / totalPages
+    }
+  }, [fontSize, lineHeight, padding, verticalMode, rubySize])
+
+  // ページ分割計算（文章の区切りを考慮）
   const paginatedNodes = useMemo(() => {
     if (!document) return []
     
-    // 文字数ベースでページ分割（簡易版）
+    // 文の終わりを検出する関数
+    const isSentenceEnd = (text: string): boolean => {
+      const sentenceEnders = ['。', '！', '？', '」', '』', '）', '.', '!', '?']
+      return sentenceEnders.some(ender => text.endsWith(ender))
+    }
+    
+    // ノードを文の区切りで分割する関数
+    const splitTextNodeAtSentence = (node: AozoraNode, remainingChars: number): { 
+      beforeSplit: AozoraNode | null, 
+      afterSplit: AozoraNode | null 
+    } => {
+      if (node.type !== 'text') {
+        return { beforeSplit: node, afterSplit: null }
+      }
+      
+      const text = node.content
+      if (text.length <= remainingChars) {
+        return { beforeSplit: node, afterSplit: null }
+      }
+      
+      // 残り文字数内で最後の文の終わりを探す
+      let splitIndex = -1
+      for (let i = Math.min(remainingChars, text.length - 1); i >= 0; i--) {
+        if (isSentenceEnd(text.substring(0, i + 1))) {
+          splitIndex = i + 1
+          break
+        }
+      }
+      
+      // 文の終わりが見つからない場合は、句読点で区切る
+      if (splitIndex === -1) {
+        const punctuation = ['、', '，', ',', '；', ';', '：', ':']
+        for (let i = Math.min(remainingChars, text.length - 1); i >= 0; i--) {
+          if (punctuation.includes(text[i])) {
+            splitIndex = i + 1
+            break
+          }
+        }
+      }
+      
+      // それでも見つからない場合は、残り文字数で強制的に区切る
+      if (splitIndex === -1) {
+        splitIndex = Math.min(remainingChars, text.length)
+      }
+      
+      const beforeText = text.substring(0, splitIndex)
+      const afterText = text.substring(splitIndex)
+      
+      return {
+        beforeSplit: beforeText ? { type: 'text', content: beforeText } : null,
+        afterSplit: afterText ? { type: 'text', content: afterText } : null
+      }
+    }
+    
+    // ページ分割処理
     const pages: AozoraNode[][] = []
     let currentPageNodes: AozoraNode[] = []
     let currentPageCharCount = 0
+    let pendingNode: AozoraNode | null = null
     
     // 1ページあたりの目安文字数（フォントサイズと画面サイズから推定）
-    // paddingをピクセルに変換（1rem = 16px と仮定）
-    const paddingPx = padding * 16 * 2 // 上下または左右の合計
-    
+    const paddingPx = padding * 16 * 2
     const charsPerPage = verticalMode 
       ? Math.floor((windowSize.height - paddingPx - 100) / fontSize) * Math.floor((windowSize.width - paddingPx - 100) / (fontSize * lineHeight))
       : Math.floor((windowSize.height - paddingPx - 200) / (fontSize * lineHeight)) * Math.floor((windowSize.width - paddingPx - 100) / fontSize)
     
-    const maxCharsPerPage = Math.max(100, charsPerPage) // 最低100文字
+    const maxCharsPerPage = Math.max(100, charsPerPage)
     
     console.log('Page calculation:', {
       verticalMode,
       windowSize,
       fontSize,
       lineHeight,
+      padding,
+      rubySize,
       charsPerPage,
       maxCharsPerPage,
       totalNodes: document.nodes.length
     })
     
-    document.nodes.forEach((node) => {
-      // ノードの文字数を概算
+    for (let i = 0; i < document.nodes.length; i++) {
+      let node = pendingNode || document.nodes[i]
+      pendingNode = null
+      
+      // ノードの文字数を計算
       let nodeCharCount = 0
       if (node.type === 'text') {
         nodeCharCount = node.content.length
@@ -80,21 +149,49 @@ export const Reader: React.FC<ReaderProps> = ({
       } else if (node.type === 'emphasis_dots') {
         nodeCharCount = node.text.length
       } else if (node.type === 'heading') {
-        nodeCharCount = node.content.length + 20 // 見出しは余白を考慮
+        nodeCharCount = node.content.length + 20
+      }
+      
+      // 見出しは常に新しいページから始める（ページに何か入っている場合）
+      if (node.type === 'heading' && currentPageNodes.length > 0 && currentPageCharCount > 0) {
+        pages.push([...currentPageNodes])
+        currentPageNodes = []
+        currentPageCharCount = 0
       }
       
       // ページに収まるか確認
       if (currentPageCharCount + nodeCharCount > maxCharsPerPage && currentPageNodes.length > 0) {
-        // 新しいページを開始
-        pages.push([...currentPageNodes])
-        currentPageNodes = [node]
-        currentPageCharCount = nodeCharCount
+        // テキストノードの場合、文の区切りで分割を試みる
+        if (node.type === 'text') {
+          const remainingChars = maxCharsPerPage - currentPageCharCount
+          const { beforeSplit, afterSplit } = splitTextNodeAtSentence(node, remainingChars)
+          
+          if (beforeSplit) {
+            currentPageNodes.push(beforeSplit)
+          }
+          
+          // 現在のページを確定
+          pages.push([...currentPageNodes])
+          currentPageNodes = []
+          currentPageCharCount = 0
+          
+          // 残りを次のページへ
+          if (afterSplit) {
+            pendingNode = afterSplit
+            i-- // 同じインデックスを再処理
+          }
+        } else {
+          // テキスト以外のノードは分割しない
+          pages.push([...currentPageNodes])
+          currentPageNodes = [node]
+          currentPageCharCount = nodeCharCount
+        }
       } else {
         // 現在のページに追加
         currentPageNodes.push(node)
         currentPageCharCount += nodeCharCount
       }
-    })
+    }
     
     // 最後のページを追加
     if (currentPageNodes.length > 0) {
@@ -105,7 +202,28 @@ export const Reader: React.FC<ReaderProps> = ({
     setTotalPages(Math.max(1, pages.length))
     
     return pages
-  }, [document, verticalMode, fontSize, lineHeight, padding, windowSize])
+  }, [document, verticalMode, fontSize, lineHeight, padding, windowSize, rubySize])
+
+  // ページ再計算時に読書位置を維持
+  useEffect(() => {
+    if (prevTotalPagesRef.current > 0 && totalPages > 0 && prevTotalPagesRef.current !== totalPages) {
+      // 保存された進捗または現在の進捗から新しいページ位置を計算
+      const readingProgress = currentPageProgressRef.current || (currentPage / prevTotalPagesRef.current)
+      const newPage = Math.round(readingProgress * totalPages)
+      const validNewPage = Math.min(Math.max(0, newPage), totalPages - 1)
+      
+      console.log('Recalculating page position:', {
+        oldPages: prevTotalPagesRef.current,
+        newPages: totalPages,
+        progress: readingProgress,
+        oldPage: currentPage,
+        newPage: validNewPage
+      })
+      
+      setCurrentPage(validNewPage)
+    }
+    prevTotalPagesRef.current = totalPages
+  }, [totalPages]) // currentPageを依存から削除して無限ループを防ぐ
 
   // 現在のページのノード
   const currentPageNodes = useMemo(() => {

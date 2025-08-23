@@ -29,7 +29,7 @@ export const Page: React.FC<PageProps> = ({
     fontSize: `${fontSize}px`,
     lineHeight: lineHeight,
     padding: `${padding}rem`,
-    '--page-padding': `${padding * 2}rem`
+    '--page-padding': `${padding}rem`
   } as React.CSSProperties
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Reader } from './components/Reader/Reader'
 import { FileUpload } from './components/FileUpload/FileUpload'
 import { Settings, type ReaderSettings } from './components/Settings/Settings'
@@ -23,11 +23,56 @@ const App: React.FC = () => {
   const [settings, setSettings] = useState<ReaderSettings>(() => 
     settingsStorage.loadSettings()
   )
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true)
+  const headerTimeoutRef = useRef<NodeJS.Timeout | undefined>()
 
   // 設定の変更を保存
   useEffect(() => {
     settingsStorage.saveSettings(settings)
   }, [settings])
+
+  // ヘッダーの自動非表示機能
+  const showHeader = useCallback(() => {
+    setIsHeaderVisible(true)
+    
+    // 既存のタイマーをクリア
+    if (headerTimeoutRef.current) {
+      clearTimeout(headerTimeoutRef.current)
+    }
+    
+    // 2秒後に非表示にする（ドキュメントが開いている場合のみ）
+    if (document) {
+      headerTimeoutRef.current = setTimeout(() => {
+        setIsHeaderVisible(false)
+      }, 2000)
+    }
+  }, [document])
+
+  // マウス移動時にヘッダーを表示
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      // 画面上部100pxの範囲にマウスがある場合
+      if (e.clientY < 100) {
+        showHeader()
+      }
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    
+    // 初期表示後、2秒で非表示
+    if (document) {
+      headerTimeoutRef.current = setTimeout(() => {
+        setIsHeaderVisible(false)
+      }, 2000)
+    }
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      if (headerTimeoutRef.current) {
+        clearTimeout(headerTimeoutRef.current)
+      }
+    }
+  }, [document, showHeader])
 
   // 最後に開いた本を読み込む
   useEffect(() => {
@@ -171,7 +216,7 @@ const App: React.FC = () => {
 
   return (
     <div className={`app app-${settings.theme}`}>
-      <header className="app-header">
+      <header className={`app-header ${isHeaderVisible ? 'header-visible' : 'header-hidden'}`}>
         <h1 className="app-title">{fileName || '青空文庫リーダー'}</h1>
         <div className="app-header-actions">
           <button

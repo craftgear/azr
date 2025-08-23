@@ -58,7 +58,7 @@ export const Reader: React.FC<ReaderProps> = ({
     
     // 文の終わりを検出する関数
     const isSentenceEnd = (text: string): boolean => {
-      const sentenceEnders = ['。', '！', '？', '」', '』', '）', '.', '!', '?']
+      const sentenceEnders = ['。', '！', '？', '」', '』', '）', '.', '!', '?', '、']
       return sentenceEnders.some(ender => text.endsWith(ender))
     }
     

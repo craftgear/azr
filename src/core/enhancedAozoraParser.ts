@@ -466,11 +466,8 @@ const isJapaneseChar = (char: string): boolean => {
   return (
     // CJK統合漢字
     (code >= 0x4e00 && code <= 0x9fff) ||
-    // ひらがな
-    (code >= 0x3040 && code <= 0x309f) ||
-    // カタカナ
-    (code >= 0x30a0 && code <= 0x30ff) ||
     // CJK統合漢字拡張A
     (code >= 0x3400 && code <= 0x4dbf)
   )
+  // ひらがなとカタカナは除外（ルビは漢字にのみ適用）
 }

@@ -301,16 +301,12 @@ export const parseAozoraText = (text: string): ParsedAozoraDocument => {
   }
 }
 
-// 日本語文字（漢字・ひらがな・カタカナ）かどうかをチェック
+// 漢字かどうかをチェック（ルビは漢字にのみ適用）
 const isJapaneseChar = (char: string): boolean => {
   const code = char.charCodeAt(0)
   return (
     // CJK統合漢字
     (code >= 0x4e00 && code <= 0x9fff) ||
-    // ひらがな
-    (code >= 0x3040 && code <= 0x309f) ||
-    // カタカナ
-    (code >= 0x30a0 && code <= 0x30ff) ||
     // CJK統合漢字拡張A
     (code >= 0x3400 && code <= 0x4dbf)
   )

@@ -1,27 +1,10 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import type { ParsedAozoraDocument } from '../types/aozora'
+import { extractTitle } from './libraryStorage'
 
 // libraryStorageのメソッドをモック化したテスト（実際のIndexedDBを使わない）
 
 describe('LibraryStorage Unit Tests', () => {
-  // タイトル抽出ロジックのテスト
-  const extractTitle = (document: ParsedAozoraDocument): string | undefined => {
-    // 底本情報からタイトルを抽出（これが最優先）
-    const textNodes = document.nodes.filter(node => node.type === 'text' && 'content' in node)
-    for (let i = textNodes.length - 1; i >= 0; i--) {
-      const content = textNodes[i].content as string
-      const match = content.match(/底本：「(.+?)」/)
-      if (match && match[1]) {
-        // 副題などを除去（括弧内のテキストを削除）
-        const title = match[1].replace(/[\(（].+?[\)）]/g, '').trim()
-        if (title) return title
-      }
-    }
-    
-    // 底本が見つからない場合はメタデータを使用
-    return document.metadata?.title
-  }
-
   describe('Title Extraction Logic', () => {
     it('should extract title from 底本 section', () => {
       const doc: ParsedAozoraDocument = {
@@ -30,7 +13,7 @@ describe('LibraryStorage Unit Tests', () => {
           { type: 'text', content: '底本：「吾輩は猫である」新潮文庫' }
         ]
       }
-      
+
       expect(extractTitle(doc)).toBe('吾輩は猫である')
     })
 
@@ -40,8 +23,8 @@ describe('LibraryStorage Unit Tests', () => {
           { type: 'text', content: '底本：「作品名（上巻）」出版社' }
         ]
       }
-      
-      expect(extractTitle(doc)).toBe('作品名')
+
+      expect(extractTitle(doc)).toBe('作品名（上巻）')
     })
 
     it('should handle full-width parentheses', () => {
@@ -50,8 +33,8 @@ describe('LibraryStorage Unit Tests', () => {
           { type: 'text', content: '底本：「日本文学（完全版）」' }
         ]
       }
-      
-      expect(extractTitle(doc)).toBe('日本文学')
+
+      expect(extractTitle(doc)).toBe('日本文学（完全版）')
     })
 
     it('should use metadata as fallback', () => {
@@ -63,7 +46,7 @@ describe('LibraryStorage Unit Tests', () => {
           title: 'メタデータタイトル'
         }
       }
-      
+
       expect(extractTitle(doc)).toBe('メタデータタイトル')
     })
 
@@ -73,7 +56,7 @@ describe('LibraryStorage Unit Tests', () => {
           { type: 'text', content: '本文のみ' }
         ]
       }
-      
+
       expect(extractTitle(doc)).toBeUndefined()
     })
 
@@ -85,7 +68,7 @@ describe('LibraryStorage Unit Tests', () => {
           { type: 'text', content: '底本：「正しいタイトル」出版社' }
         ]
       }
-      
+
       expect(extractTitle(doc)).toBe('正しいタイトル')
     })
   })
@@ -96,12 +79,12 @@ describe('LibraryStorage Unit Tests', () => {
         { metadata: { title: undefined } },
         { metadata: { title: 'タイトルあり' } }
       ]
-      
+
       const term = 'タイトル'
-      const filtered = books.filter(book => 
+      const filtered = books.filter(book =>
         (book.metadata.title?.toLowerCase().includes(term.toLowerCase()) ?? false)
       )
-      
+
       expect(filtered).toHaveLength(1)
       expect(filtered[0].metadata.title).toBe('タイトルあり')
     })
@@ -111,13 +94,13 @@ describe('LibraryStorage Unit Tests', () => {
         { metadata: { title: '本1', author: undefined } },
         { metadata: { title: '本2', author: '夏目漱石' } }
       ]
-      
+
       const term = '夏目'
-      const filtered = books.filter(book => 
+      const filtered = books.filter(book =>
         (book.metadata.title?.toLowerCase().includes(term.toLowerCase()) ?? false) ||
         (book.metadata.author?.toLowerCase().includes(term.toLowerCase()) ?? false)
       )
-      
+
       expect(filtered).toHaveLength(1)
       expect(filtered[0].metadata.author).toBe('夏目漱石')
     })
@@ -130,11 +113,11 @@ describe('LibraryStorage Unit Tests', () => {
         { metadata: { title: undefined } },
         { metadata: { title: 'あ' } }
       ]
-      
-      books.sort((a, b) => 
+
+      books.sort((a, b) =>
         (a.metadata.title || '').localeCompare(b.metadata.title || '')
       )
-      
+
       expect(books[0].metadata.title).toBeUndefined()
       expect(books[1].metadata.title).toBe('あ')
       expect(books[2].metadata.title).toBe('ぼ')
@@ -143,19 +126,19 @@ describe('LibraryStorage Unit Tests', () => {
     it('should handle undefined dates in sort', () => {
       const now = new Date()
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
-      
+
       const books = [
         { metadata: { lastReadDate: now } },
         { metadata: { lastReadDate: undefined } },
         { metadata: { lastReadDate: yesterday } }
       ]
-      
+
       books.sort((a, b) => {
         const aDate = a.metadata.lastReadDate ? new Date(a.metadata.lastReadDate).getTime() : 0
         const bDate = b.metadata.lastReadDate ? new Date(b.metadata.lastReadDate).getTime() : 0
         return aDate - bDate
       })
-      
+
       expect(books[0].metadata.lastReadDate).toBeUndefined()
       expect(books[1].metadata.lastReadDate).toBe(yesterday)
       expect(books[2].metadata.lastReadDate).toBe(now)
@@ -167,7 +150,7 @@ describe('LibraryStorage Unit Tests', () => {
       const lastPosition = 250
       const totalLength = 1000
       const percent = Math.round((lastPosition / totalLength) * 100)
-      
+
       expect(percent).toBe(25)
     })
 
@@ -175,7 +158,7 @@ describe('LibraryStorage Unit Tests', () => {
       const lastPosition = 100
       const totalLength = 0
       const percent = totalLength > 0 ? Math.round((lastPosition / totalLength) * 100) : 0
-      
+
       expect(percent).toBe(0)
     })
 
@@ -183,7 +166,7 @@ describe('LibraryStorage Unit Tests', () => {
       const lastPosition = 1500
       const totalLength = 1000
       const percent = Math.min(100, Math.round((lastPosition / totalLength) * 100))
-      
+
       expect(percent).toBe(100)
     })
   })
@@ -210,7 +193,7 @@ describe('LibraryStorage Unit Tests', () => {
           { type: 'text', content: '67890' }
         ]
       }
-      
+
       expect(calculateTotalLength(doc)).toBe(10)
     })
 
@@ -221,7 +204,7 @@ describe('LibraryStorage Unit Tests', () => {
           { type: 'text', content: 'テキスト' }
         ]
       }
-      
+
       expect(calculateTotalLength(doc)).toBe(6) // '漢字' + 'テキスト'
     })
 
@@ -232,7 +215,7 @@ describe('LibraryStorage Unit Tests', () => {
           { type: 'text', content: '通常' }
         ]
       }
-      
+
       expect(calculateTotalLength(doc)).toBe(4) // '強調' + '通常'
     })
   })
@@ -257,7 +240,7 @@ describe('LibraryStorage Unit Tests', () => {
           { type: 'text', content: 'これは二番目のテキストです。' }
         ]
       }
-      
+
       const thumbnail = generateThumbnail(doc)
       expect(thumbnail).toBe('これは最初のテキストです。これは二番目のテキストです。')
     })
@@ -268,7 +251,7 @@ describe('LibraryStorage Unit Tests', () => {
           { type: 'text', content: 'あ'.repeat(150) }
         ]
       }
-      
+
       const thumbnail = generateThumbnail(doc)
       expect(thumbnail.length).toBe(100)
     })
@@ -277,7 +260,7 @@ describe('LibraryStorage Unit Tests', () => {
       const doc: ParsedAozoraDocument = {
         nodes: []
       }
-      
+
       const thumbnail = generateThumbnail(doc)
       expect(thumbnail).toBe('')
     })

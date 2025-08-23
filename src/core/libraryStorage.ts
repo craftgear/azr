@@ -84,15 +84,15 @@ const generateId = (): string => {
   return `book_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 }
 
-const extractTitle = (document: ParsedAozoraDocument): string | undefined => {
+export const extractTitle = (document: ParsedAozoraDocument): string | undefined => {
   // 底本情報からタイトルを抽出（これが最優先）
   const textNodes = document.nodes.filter(node => node.type === 'text' && 'content' in node)
   for (let i = textNodes.length - 1; i >= 0; i--) {
     const content = textNodes[i].content as string
     const match = content.match(/底本：「(.+?)」/)
     if (match && match[1]) {
-      // 副題などを除去（括弧内のテキストを削除）
-      const title = match[1].replace(/[\(（].+?[\)）]/g, '').trim()
+      // タイトルをそのまま返す（括弧内の副題も含める）
+      const title = match[1].trim()
       if (title) return title
     }
   }

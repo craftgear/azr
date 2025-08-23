@@ -46,7 +46,7 @@ const App: React.FC = () => {
               const content = textNodes[i].content as string
               const match = content.match(/底本：「(.+?)」/)
               if (match && match[1]) {
-                title = match[1].replace(/[\(（].+?[\)）]/g, '').trim()
+                title = match[1].trim()
                 if (title) break
               }
             }
@@ -134,7 +134,7 @@ const App: React.FC = () => {
       const content = textNodes[i].content as string
       const match = content.match(/底本：「(.+?)」/)
       if (match && match[1]) {
-        title = match[1].replace(/[\(（].+?[\)）]/g, '').trim()
+        title = match[1].trim()
         if (title) break
       }
     }

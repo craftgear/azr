@@ -271,7 +271,7 @@ describe('LibraryStorage Integration Tests', () => {
   })
 
   describe('Title Extraction', () => {
-    it('should extract title with parentheses removal', async () => {
+    it('should extract title with parentheses included', async () => {
       const doc: ParsedAozoraDocument = {
         nodes: [
           { type: 'text', content: '底本：「もみの木は残った（上）」新潮文庫' }
@@ -281,7 +281,7 @@ describe('LibraryStorage Integration Tests', () => {
       const bookId = await libraryStorage.addBook(doc)
       const book = await libraryStorage.getBook(bookId)
       
-      expect(book?.metadata.title).toBe('もみの木は残った')
+      expect(book?.metadata.title).toBe('もみの木は残った（上）')
     })
 
     it('should handle full-width parentheses', async () => {
@@ -294,7 +294,7 @@ describe('LibraryStorage Integration Tests', () => {
       const bookId = await libraryStorage.addBook(doc)
       const book = await libraryStorage.getBook(bookId)
       
-      expect(book?.metadata.title).toBe('作品集')
+      expect(book?.metadata.title).toBe('作品集（完全版）')
     })
 
     it('should use metadata title as fallback', async () => {

@@ -7,7 +7,8 @@ const DEFAULT_SETTINGS: ReaderSettings = {
   fontSize: 16,
   lineHeight: 1.8,
   theme: 'light',
-  padding: 2
+  padding: 2,
+  rubySize: 'normal'
 }
 
 export const settingsStorage = {

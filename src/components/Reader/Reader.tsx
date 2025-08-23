@@ -9,6 +9,7 @@ type ReaderProps = {
   lineHeight?: number
   theme?: 'light' | 'dark'
   padding?: number
+  rubySize?: 'small' | 'normal' | 'large'
   onScrollPositionChange?: (position: number) => void
   initialScrollPosition?: number
 }
@@ -20,6 +21,7 @@ export const Reader: React.FC<ReaderProps> = ({
   lineHeight = 1.8,
   theme = 'light',
   padding = 2,
+  rubySize = 'normal',
   onScrollPositionChange,
   initialScrollPosition = 0
 }) => {
@@ -198,7 +200,7 @@ export const Reader: React.FC<ReaderProps> = ({
     )
   }
 
-  const readerClass = `reader reader-${theme} ${verticalMode ? 'reader-vertical' : 'reader-horizontal'}`
+  const readerClass = `reader reader-${theme} ${verticalMode ? 'reader-vertical' : 'reader-horizontal'} ruby-${rubySize}`
   const readerStyle: React.CSSProperties = {
     fontSize: `${fontSize}px`,
     lineHeight: lineHeight,

@@ -7,6 +7,7 @@ export type ReaderSettings = {
   lineHeight: number
   theme: 'light' | 'dark'
   padding: number
+  rubySize: 'small' | 'normal' | 'large'
 }
 
 type SettingsProps = {
@@ -146,6 +147,41 @@ export const Settings: React.FC<SettingsProps> = ({
               onChange={(e) => handleChange('padding', Number(e.target.value))}
               className="settings-slider"
             />
+          </div>
+
+          <div className="settings-group">
+            <label className="settings-label">
+              ルビサイズ
+            </label>
+            <div className="settings-radio-group">
+              <label className="settings-radio">
+                <input
+                  type="radio"
+                  name="rubySize"
+                  checked={settings.rubySize === 'small'}
+                  onChange={() => handleChange('rubySize', 'small')}
+                />
+                <span>小</span>
+              </label>
+              <label className="settings-radio">
+                <input
+                  type="radio"
+                  name="rubySize"
+                  checked={settings.rubySize === 'normal'}
+                  onChange={() => handleChange('rubySize', 'normal')}
+                />
+                <span>中</span>
+              </label>
+              <label className="settings-radio">
+                <input
+                  type="radio"
+                  name="rubySize"
+                  checked={settings.rubySize === 'large'}
+                  onChange={() => handleChange('rubySize', 'large')}
+                />
+                <span>大</span>
+              </label>
+            </div>
           </div>
         </div>
       </div>

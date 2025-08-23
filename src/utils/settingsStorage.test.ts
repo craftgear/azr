@@ -17,7 +17,8 @@ describe('settingsStorage', () => {
         fontSize: 16,
         lineHeight: 1.8,
         theme: 'light',
-        padding: 2
+        padding: 2,
+        rubySize: 'normal'
       })
     })
 
@@ -27,7 +28,8 @@ describe('settingsStorage', () => {
         fontSize: 20,
         lineHeight: 2.0,
         theme: 'dark',
-        padding: 3
+        padding: 3,
+        rubySize: 'large'
       }
       
       localStorage.setItem('readerSettings', JSON.stringify(savedSettings))
@@ -46,7 +48,8 @@ describe('settingsStorage', () => {
         fontSize: 16,
         lineHeight: 1.8,
         theme: 'light',
-        padding: 2
+        padding: 2,
+        rubySize: 'normal'
       })
     })
 
@@ -65,7 +68,8 @@ describe('settingsStorage', () => {
         fontSize: 24,
         lineHeight: 1.8,
         theme: 'dark',
-        padding: 2
+        padding: 2,
+        rubySize: 'normal'
       })
     })
   })
@@ -77,7 +81,8 @@ describe('settingsStorage', () => {
         fontSize: 18,
         lineHeight: 2.2,
         theme: 'dark',
-        padding: 1.5
+        padding: 1.5,
+        rubySize: 'small'
       }
       
       settingsStorage.saveSettings(settings)
@@ -93,7 +98,8 @@ describe('settingsStorage', () => {
         fontSize: 16,
         lineHeight: 1.8,
         theme: 'light',
-        padding: 2
+        padding: 2,
+        rubySize: 'normal'
       }
       
       // localStorage.setItemをモック化してエラーを投げる

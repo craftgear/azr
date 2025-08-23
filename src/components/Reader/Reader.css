@@ -67,6 +67,19 @@ ruby rt {
   font-weight: normal;
 }
 
+/* ルビサイズ設定 */
+.ruby-small ruby rt {
+  font-size: 0.35em;
+}
+
+.ruby-normal ruby rt {
+  font-size: 0.5em;
+}
+
+.ruby-large ruby rt {
+  font-size: 0.7em;
+}
+
 .reader-vertical ruby {
   ruby-position: over;
 }

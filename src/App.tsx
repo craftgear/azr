@@ -233,6 +233,7 @@ const App: React.FC = () => {
             lineHeight={settings.lineHeight}
             theme={settings.theme}
             padding={settings.padding}
+            rubySize={settings.rubySize}
             onScrollPositionChange={handleScrollPositionChange}
             initialScrollPosition={initialScrollPosition}
           />

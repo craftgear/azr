@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef, useCallback } from 'react'
 import type { ParsedAozoraDocument, AozoraNode } from '../../types/aozora'
 import './Reader.css'
 
@@ -9,6 +9,8 @@ type ReaderProps = {
   lineHeight?: number
   theme?: 'light' | 'dark'
   padding?: number
+  onScrollPositionChange?: (position: number) => void
+  initialScrollPosition?: number
 }
 
 export const Reader: React.FC<ReaderProps> = ({
@@ -17,8 +19,60 @@ export const Reader: React.FC<ReaderProps> = ({
   fontSize = 16,
   lineHeight = 1.8,
   theme = 'light',
-  padding = 2
+  padding = 2,
+  onScrollPositionChange,
+  initialScrollPosition = 0
 }) => {
+  const readerRef = useRef<HTMLDivElement>(null)
+  const lastScrollPosition = useRef(0)
+  const scrollTimeout = useRef<NodeJS.Timeout>()
+
+  // 初期スクロール位置を設定
+  useEffect(() => {
+    if (readerRef.current && initialScrollPosition > 0) {
+      if (verticalMode) {
+        readerRef.current.scrollLeft = initialScrollPosition
+      } else {
+        readerRef.current.scrollTop = initialScrollPosition
+      }
+    }
+  }, [document, initialScrollPosition, verticalMode])
+
+  // スクロール位置の変更を通知（デバウンス付き）
+  const handleScroll = useCallback(() => {
+    if (!readerRef.current || !onScrollPositionChange) return
+
+    const currentPosition = verticalMode 
+      ? readerRef.current.scrollLeft 
+      : readerRef.current.scrollTop
+
+    // 位置が変わった場合のみ更新
+    if (Math.abs(currentPosition - lastScrollPosition.current) > 10) {
+      lastScrollPosition.current = currentPosition
+
+      // デバウンス処理
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current)
+      }
+      
+      scrollTimeout.current = setTimeout(() => {
+        onScrollPositionChange(currentPosition)
+      }, 500) // 500ms後に保存
+    }
+  }, [verticalMode, onScrollPositionChange])
+
+  useEffect(() => {
+    const reader = readerRef.current
+    if (!reader) return
+
+    reader.addEventListener('scroll', handleScroll)
+    return () => {
+      reader.removeEventListener('scroll', handleScroll)
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current)
+      }
+    }
+  }, [handleScroll])
   // ノードをReact要素に変換
   const renderNode = (node: AozoraNode, index: number): React.ReactElement | string => {
     switch (node.type) {
@@ -135,7 +189,7 @@ export const Reader: React.FC<ReaderProps> = ({
   } as React.CSSProperties
 
   return (
-    <div className={readerClass} style={readerStyle}>
+    <div className={readerClass} style={readerStyle} ref={readerRef}>
       <div className="reader-content">
         {document.nodes.map((node, index) => renderNode(node, index))}
       </div>

@@ -1,0 +1,373 @@
+.library-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.library-container {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 1200px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* ヘッダー */
+.library-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.library-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.library-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+  padding: 0.5rem;
+}
+
+.library-close:hover {
+  color: #000;
+}
+
+/* コントロール */
+.library-controls {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+  align-items: center;
+}
+
+.library-search {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.library-sort {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.library-sort select {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+}
+
+.library-sort-order {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.library-sort-order:hover {
+  background: #f5f5f5;
+}
+
+.library-view-toggle {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.library-view-toggle button {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  background: white;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.library-view-toggle button:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.library-view-toggle button:last-child {
+  border-radius: 0 4px 4px 0;
+  border-left: none;
+}
+
+.library-view-toggle button.active {
+  background: #007bff;
+  color: white;
+}
+
+/* コンテンツエリア */
+.library-books {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+/* グリッドビュー */
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.library-grid .library-book {
+  position: relative;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: white;
+}
+
+.library-grid .library-book:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.library-book-thumbnail {
+  position: relative;
+  background: #f5f5f5;
+  height: 150px;
+  overflow: hidden;
+}
+
+.library-book-preview {
+  padding: 1rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: #666;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+}
+
+.library-book-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #e0e0e0;
+}
+
+.library-book-progress-bar {
+  height: 100%;
+  background: #4caf50;
+  transition: width 0.3s;
+}
+
+.library-book-info {
+  padding: 1rem;
+}
+
+.library-book-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-book-author {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  color: #666;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-book-date {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.library-book-delete {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.library-book:hover .library-book-delete {
+  opacity: 1;
+}
+
+.library-book-delete:hover {
+  background: #ff5252;
+  color: white;
+  border-color: #ff5252;
+}
+
+/* リストビュー */
+.library-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.library-list .library-book {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.library-list .library-book:hover {
+  background: #f5f5f5;
+}
+
+.library-book-list-info {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.library-list .library-book-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-list .library-book-author {
+  font-size: 0.875rem;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.library-book-list-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.library-book-progress-text {
+  font-size: 0.875rem;
+  color: #666;
+  min-width: 3rem;
+  text-align: right;
+}
+
+/* 状態表示 */
+.library-loading,
+.library-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+}
+
+.library-empty-hint {
+  font-size: 0.875rem;
+  color: #999;
+  margin-top: 0.5rem;
+}
+
+/* フッター */
+.library-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e0e0e0;
+  text-align: center;
+  color: #666;
+  font-size: 0.875rem;
+}
+
+.library-footer p {
+  margin: 0;
+}
+
+/* ダークモード対応 */
+.app-dark .library-container {
+  background: #1a1a1a;
+  color: #e0e0e0;
+}
+
+.app-dark .library-header,
+.app-dark .library-controls,
+.app-dark .library-footer {
+  border-color: #333;
+}
+
+.app-dark .library-search,
+.app-dark .library-sort select,
+.app-dark .library-sort-order,
+.app-dark .library-view-toggle button {
+  background: #2a2a2a;
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+.app-dark .library-view-toggle button.active {
+  background: #007bff;
+}
+
+.app-dark .library-book {
+  background: #2a2a2a;
+  border-color: #444;
+}
+
+.app-dark .library-book-thumbnail {
+  background: #1a1a1a;
+}
+
+.app-dark .library-book-preview {
+  color: #999;
+}
+
+.app-dark .library-book-author,
+.app-dark .library-book-date,
+.app-dark .library-book-progress-text {
+  color: #999;
+}
+
+.app-dark .library-book-delete {
+  background: #2a2a2a;
+  border-color: #444;
+  color: #e0e0e0;
+}

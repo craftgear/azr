@@ -2,7 +2,7 @@ import type { LibraryBook, LibraryFilter, BookMetadata, ReadingProgress } from '
 import type { ParsedAozoraDocument } from '../types/aozora'
 
 const DB_NAME = 'AozoraLibrary'
-const DB_VERSION = 1
+const DB_VERSION = 2 // Increment version to trigger upgrade
 const STORE_NAME = 'books'
 
 class LibraryStorage {
@@ -10,23 +10,30 @@ class LibraryStorage {
 
   // IndexedDBを初期化
   async init(): Promise<void> {
+    if (this.db) return // Already initialized
+    
     return new Promise((resolve, reject) => {
+      // console.log('Initializing IndexedDB...')
       const request = indexedDB.open(DB_NAME, DB_VERSION)
 
       request.onerror = () => {
+        // console.error('Failed to open IndexedDB')
         reject(new Error('Failed to open IndexedDB'))
       }
 
       request.onsuccess = () => {
         this.db = request.result
+        // console.log('IndexedDB initialized successfully')
         resolve()
       }
 
       request.onupgradeneeded = (event) => {
+        // console.log('Database upgrade needed')
         const db = (event.target as IDBOpenDBRequest).result
 
         // booksストアを作成
         if (!db.objectStoreNames.contains(STORE_NAME)) {
+          // console.log('Creating books object store')
           const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
           
           // インデックスを作成
@@ -34,6 +41,7 @@ class LibraryStorage {
           store.createIndex('author', 'metadata.author', { unique: false })
           store.createIndex('addedDate', 'metadata.addedDate', { unique: false })
           store.createIndex('lastReadDate', 'metadata.lastReadDate', { unique: false })
+          // console.log('Object store created successfully')
         }
       }
     })
@@ -44,11 +52,13 @@ class LibraryStorage {
     if (!this.db) await this.init()
 
     const title = metadata?.title || this.extractTitle(document) || 'Untitled'
+    console.log('Adding book with title:', title)
     
     // 同じタイトルの本が既に存在するかチェック
     const existingBook = await this.findBookByTitle(title)
     
     if (existingBook) {
+      console.log('Book already exists, updating:', existingBook.id)
       // 既存の本を更新
       const updatedBook: LibraryBook = {
         ...existingBook,
@@ -64,6 +74,8 @@ class LibraryStorage {
       await this.updateBook(existingBook.id, updatedBook)
       return existingBook.id
     }
+    
+    console.log('Creating new book entry')
 
     // 新規追加
     const id = this.generateId()
@@ -91,10 +103,17 @@ class LibraryStorage {
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([STORE_NAME], 'readwrite')
       const store = transaction.objectStore(STORE_NAME)
+      console.log('Adding book to IndexedDB:', book.metadata.title)
       const request = store.add(book)
 
-      request.onsuccess = () => resolve(id)
-      request.onerror = () => reject(new Error('Failed to add book'))
+      request.onsuccess = () => {
+        console.log('Book added successfully with ID:', id)
+        resolve(id)
+      }
+      request.onerror = () => {
+        console.error('Failed to add book to IndexedDB:', request.error)
+        reject(new Error('Failed to add book'))
+      }
     })
   }
 
@@ -108,7 +127,24 @@ class LibraryStorage {
       const index = store.index('title')
       const request = index.get(title)
 
-      request.onsuccess = () => resolve(request.result || null)
+      request.onsuccess = () => {
+        const book = request.result
+        if (!book) {
+          resolve(null)
+          return
+        }
+        
+        // Dateオブジェクトを復元
+        const restoredBook: LibraryBook = {
+          ...book,
+          metadata: {
+            ...book.metadata,
+            addedDate: new Date(book.metadata.addedDate),
+            lastReadDate: book.metadata.lastReadDate ? new Date(book.metadata.lastReadDate) : undefined
+          }
+        }
+        resolve(restoredBook)
+      }
       request.onerror = () => reject(new Error('Failed to find book by title'))
     })
   }
@@ -122,7 +158,24 @@ class LibraryStorage {
       const store = transaction.objectStore(STORE_NAME)
       const request = store.get(id)
 
-      request.onsuccess = () => resolve(request.result || null)
+      request.onsuccess = () => {
+        const book = request.result
+        if (!book) {
+          resolve(null)
+          return
+        }
+        
+        // Dateオブジェクトを復元
+        const restoredBook: LibraryBook = {
+          ...book,
+          metadata: {
+            ...book.metadata,
+            addedDate: new Date(book.metadata.addedDate),
+            lastReadDate: book.metadata.lastReadDate ? new Date(book.metadata.lastReadDate) : undefined
+          }
+        }
+        resolve(restoredBook)
+      }
       request.onerror = () => reject(new Error('Failed to get book'))
     })
   }
@@ -132,25 +185,41 @@ class LibraryStorage {
     if (!this.db) await this.init()
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readonly')
-      const store = transaction.objectStore(STORE_NAME)
-      
-      let request: IDBRequest
-      if (filter?.sortBy && filter.sortBy !== 'progress') {
-        const index = store.index(filter.sortBy)
-        request = index.getAll()
-      } else {
+      try {
+        const transaction = this.db!.transaction([STORE_NAME], 'readonly')
+        const store = transaction.objectStore(STORE_NAME)
+        
+        transaction.onerror = () => {
+          console.error('Transaction error:', transaction.error)
+          reject(new Error('Transaction failed'))
+        }
+        
+        let request: IDBRequest
+        // Temporarily disable index usage to see if that's the issue
+        // if (filter?.sortBy && filter.sortBy !== 'progress') {
+        //   const index = store.index(filter.sortBy)
+        //   request = index.getAll()
+        // } else {
         request = store.getAll()
-      }
+        // }
 
-      request.onsuccess = () => {
-        let books: LibraryBook[] = request.result
+        request.onsuccess = () => {
+        console.log('Raw books from IndexedDB:', request.result)
+        let books: LibraryBook[] = request.result.map((book: LibraryBook) => ({
+          ...book,
+          metadata: {
+            ...book.metadata,
+            addedDate: new Date(book.metadata.addedDate),
+            lastReadDate: book.metadata.lastReadDate ? new Date(book.metadata.lastReadDate) : undefined
+          }
+        }))
+        console.log('Processed books:', books)
 
         // フィルタリング
         if (filter?.searchTerm) {
           const term = filter.searchTerm.toLowerCase()
           books = books.filter(book => 
-            book.metadata.title.toLowerCase().includes(term) ||
+            (book.metadata.title?.toLowerCase().includes(term) ?? false) ||
             (book.metadata.author?.toLowerCase().includes(term) ?? false)
           )
         }
@@ -168,17 +237,17 @@ class LibraryStorage {
             
             switch (filter.sortBy) {
               case 'title':
-                compareValue = a.metadata.title.localeCompare(b.metadata.title)
+                compareValue = (a.metadata.title || '').localeCompare(b.metadata.title || '')
                 break
               case 'author':
                 compareValue = (a.metadata.author || '').localeCompare(b.metadata.author || '')
                 break
               case 'addedDate':
-                compareValue = a.metadata.addedDate.getTime() - b.metadata.addedDate.getTime()
+                compareValue = new Date(a.metadata.addedDate).getTime() - new Date(b.metadata.addedDate).getTime()
                 break
               case 'lastReadDate':
-                const aDate = a.metadata.lastReadDate?.getTime() || 0
-                const bDate = b.metadata.lastReadDate?.getTime() || 0
+                const aDate = a.metadata.lastReadDate ? new Date(a.metadata.lastReadDate).getTime() : 0
+                const bDate = b.metadata.lastReadDate ? new Date(b.metadata.lastReadDate).getTime() : 0
                 compareValue = aDate - bDate
                 break
               case 'progress':
@@ -190,10 +259,19 @@ class LibraryStorage {
           })
         }
 
+        console.log('Final books to return:', books)
+        console.log('Number of books:', books.length)
         resolve(books)
       }
 
-      request.onerror = () => reject(new Error('Failed to get all books'))
+        request.onerror = () => {
+          console.error('Failed to get all books:', request.error)
+          reject(new Error('Failed to get all books'))
+        }
+      } catch (error) {
+        console.error('Error in getAllBooks:', error)
+        reject(error)
+      }
     })
   }
 
@@ -275,19 +353,48 @@ class LibraryStorage {
     })
   }
 
+  // データベースを削除して再作成（エラー修復用）
+  async resetDatabase(): Promise<void> {
+    if (this.db) {
+      this.db.close()
+      this.db = null
+    }
+    
+    return new Promise((resolve, reject) => {
+      const deleteRequest = indexedDB.deleteDatabase(DB_NAME)
+      
+      deleteRequest.onsuccess = async () => {
+        console.log('Database deleted successfully')
+        await this.init()
+        resolve()
+      }
+      
+      deleteRequest.onerror = () => {
+        console.error('Failed to delete database')
+        reject(new Error('Failed to delete database'))
+      }
+    })
+  }
+
   // ヘルパーメソッド
   private generateId(): string {
     return `book_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   }
 
   private extractTitle(document: ParsedAozoraDocument): string | undefined {
-    // ドキュメントから最初の見出しを探してタイトルとする
-    const headingNode = document.nodes.find(node => node.type === 'heading')
-    if (headingNode && 'content' in headingNode) {
-      return headingNode.content as string
+    // 底本情報からタイトルを抽出（これが最優先）
+    const textNodes = document.nodes.filter(node => node.type === 'text' && 'content' in node)
+    for (let i = textNodes.length - 1; i >= 0; i--) {
+      const content = textNodes[i].content as string
+      const match = content.match(/底本：「(.+?)」/)
+      if (match && match[1]) {
+        // 副題などを除去（括弧内のテキストを削除）
+        const title = match[1].replace(/[\(（].+?[\)）]/g, '').trim()
+        if (title) return title
+      }
     }
     
-    // メタデータにタイトルがあれば使用
+    // 底本が見つからない場合はメタデータを使用
     return document.metadata?.title
   }
 

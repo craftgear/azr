@@ -79,14 +79,32 @@ export const Reader: React.FC<ReaderProps> = ({
       case 'text':
         // 改行を処理
         const parts = node.content.split('\n')
-        if (parts.length === 1) {
-          return parts[0]
+        
+        const processTextPart = (text: string) => {
+          // 縦書きモードで連続するハイフンまたはダッシュを検出
+          if (verticalMode && /[-—－ー─]{2,}/.test(text)) {
+            // 連続するダッシュ記号を特別な処理
+            const segments = text.split(/([-—－ー─]{2,})/g)
+            return segments.map((segment, idx) => {
+              if (/^[-—－ー─]{2,}$/.test(segment)) {
+                // 連続するダッシュを縦線として表示
+                return <span key={idx} className="dash-line">{segment}</span>
+              }
+              return segment
+            })
+          }
+          return text
         }
+        
+        if (parts.length === 1) {
+          return processTextPart(parts[0])
+        }
+        
         return (
           <React.Fragment key={index}>
             {parts.map((part, i) => (
               <React.Fragment key={i}>
-                {part}
+                {processTextPart(part)}
                 {i < parts.length - 1 && <br />}
               </React.Fragment>
             ))}

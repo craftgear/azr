@@ -28,8 +28,13 @@ export const Library: React.FC<LibraryProps> = ({ onBookSelect, onClose }) => {
         sortBy,
         sortOrder
       }
+      console.log('Loading books with filter:', filter)
       const loadedBooks = await libraryStorage.getAllBooks(filter)
+      console.log('Loaded books:', loadedBooks)
+      console.log('Type of loadedBooks:', typeof loadedBooks)
+      console.log('Is array?', Array.isArray(loadedBooks))
       setBooks(loadedBooks)
+      console.log('Books state set')
     } catch (error) {
       console.error('Failed to load books:', error)
     } finally {
@@ -119,6 +124,7 @@ export const Library: React.FC<LibraryProps> = ({ onBookSelect, onClose }) => {
           </div>
         </div>
 
+        {console.log('Rendering - isLoading:', isLoading, 'books:', books, 'books.length:', books.length)}
         {isLoading ? (
           <div className="library-loading">読み込み中...</div>
         ) : books.length === 0 ? (
@@ -140,7 +146,7 @@ export const Library: React.FC<LibraryProps> = ({ onBookSelect, onClose }) => {
                   <>
                     <div className="library-book-thumbnail">
                       <div className="library-book-preview">
-                        {book.metadata.thumbnail}
+                        {book.metadata.thumbnail || '...'}
                       </div>
                       <div className="library-book-progress">
                         <div 
@@ -150,7 +156,7 @@ export const Library: React.FC<LibraryProps> = ({ onBookSelect, onClose }) => {
                       </div>
                     </div>
                     <div className="library-book-info">
-                      <h3 className="library-book-title">{book.metadata.title}</h3>
+                      <h3 className="library-book-title">{book.metadata.title || 'Untitled'}</h3>
                       {book.metadata.author && (
                         <p className="library-book-author">{book.metadata.author}</p>
                       )}
@@ -168,7 +174,7 @@ export const Library: React.FC<LibraryProps> = ({ onBookSelect, onClose }) => {
                 ) : (
                   <>
                     <div className="library-book-list-info">
-                      <h3 className="library-book-title">{book.metadata.title}</h3>
+                      <h3 className="library-book-title">{book.metadata.title || 'Untitled'}</h3>
                       {book.metadata.author && (
                         <span className="library-book-author">{book.metadata.author}</span>
                       )}

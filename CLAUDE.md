@@ -9,7 +9,8 @@
 - leave comments only on important parts of codes
 - comments should be in Japanese
 - DELETE old code when replacing it
-- always write tests first
+- ALWAYS write tests first, then implement the code
+- ALWAYS RUN all tests after changes to ensure nothing is broken
 
 # git
 - always use `git commit -m "message"` instead of `git commit`

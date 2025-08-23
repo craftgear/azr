@@ -44,6 +44,19 @@
   min-width: 100%;
 }
 
+/* 縦書きモードでのハイフン処理 */
+.reader-vertical {
+  /* 連続するハイフンを縦線として表示 */
+  text-combine-upright: none;
+}
+
+/* ダッシュ記号の縦書き調整 */
+.reader-vertical .dash-line {
+  /* 縦書き時にダッシュを縦線として表示 */
+  text-orientation: sideways;
+  letter-spacing: -0.1em;
+}
+
 /* ルビ設定 */
 ruby {
   ruby-align: center;

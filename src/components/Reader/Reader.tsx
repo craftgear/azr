@@ -11,7 +11,6 @@ type ReaderProps = {
   theme?: 'light' | 'dark'
   padding?: number
   rubySize?: 'small' | 'normal' | 'large'
-  paginationMode?: boolean
   onScrollPositionChange?: (position: number) => void
   initialScrollPosition?: number
 }
@@ -24,13 +23,9 @@ export const Reader: React.FC<ReaderProps> = ({
   theme = 'light',
   padding = 2,
   rubySize = 'normal',
-  paginationMode = true,
   onScrollPositionChange,
   initialScrollPosition = 0
 }) => {
-  const readerRef = useRef<HTMLDivElement>(null)
-  const lastScrollPosition = useRef(0)
-  const scrollTimeout = useRef<NodeJS.Timeout | undefined>()
   const [currentPage, setCurrentPage] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
 
@@ -48,7 +43,7 @@ export const Reader: React.FC<ReaderProps> = ({
 
   // ページ分割計算
   const paginatedNodes = useMemo(() => {
-    if (!document || !paginationMode) return []
+    if (!document) return []
     
     // 文字数ベースでページ分割（簡易版）
     const pages: AozoraNode[][] = []
@@ -56,9 +51,12 @@ export const Reader: React.FC<ReaderProps> = ({
     let currentPageCharCount = 0
     
     // 1ページあたりの目安文字数（フォントサイズと画面サイズから推定）
+    // paddingをピクセルに変換（1rem = 16px と仮定）
+    const paddingPx = padding * 16 * 2 // 上下または左右の合計
+    
     const charsPerPage = verticalMode 
-      ? Math.floor((windowSize.height - 100) / fontSize) * Math.floor((windowSize.width - 100) / (fontSize * lineHeight))
-      : Math.floor((windowSize.height - 200) / (fontSize * lineHeight)) * Math.floor((windowSize.width - 100) / fontSize)
+      ? Math.floor((windowSize.height - paddingPx - 100) / fontSize) * Math.floor((windowSize.width - paddingPx - 100) / (fontSize * lineHeight))
+      : Math.floor((windowSize.height - paddingPx - 200) / (fontSize * lineHeight)) * Math.floor((windowSize.width - paddingPx - 100) / fontSize)
     
     const maxCharsPerPage = Math.max(100, charsPerPage) // 最低100文字
     
@@ -107,14 +105,14 @@ export const Reader: React.FC<ReaderProps> = ({
     setTotalPages(Math.max(1, pages.length))
     
     return pages
-  }, [document, paginationMode, verticalMode, fontSize, lineHeight, windowSize])
+  }, [document, verticalMode, fontSize, lineHeight, padding, windowSize])
 
   // 現在のページのノード
   const currentPageNodes = useMemo(() => {
-    if (!paginationMode || paginatedNodes.length === 0) return []
+    if (paginatedNodes.length === 0) return []
     const validPage = Math.min(currentPage, paginatedNodes.length - 1)
     return paginatedNodes[validPage] || []
-  }, [paginationMode, paginatedNodes, currentPage])
+  }, [paginatedNodes, currentPage])
 
   // ページナビゲーション
   const goToNextPage = useCallback(() => {
@@ -137,8 +135,6 @@ export const Reader: React.FC<ReaderProps> = ({
 
   // キーボードナビゲーション
   useEffect(() => {
-    if (!paginationMode) return
-
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
         case 'ArrowLeft':
@@ -192,60 +188,19 @@ export const Reader: React.FC<ReaderProps> = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [paginationMode, verticalMode, goToNextPage, goToPreviousPage])
+  }, [verticalMode, goToNextPage, goToPreviousPage])
 
-  // 初期スクロール位置を設定（ページモードの場合はページ番号として扱う）
+  // 初期ページ位置を設定
   useEffect(() => {
-    if (paginationMode && initialScrollPosition > 0) {
+    if (initialScrollPosition > 0) {
       // initialScrollPositionをページ番号として扱う
       const pageNumber = Math.floor(initialScrollPosition)
       if (pageNumber >= 0 && pageNumber < totalPages) {
         setCurrentPage(pageNumber)
       }
-    } else if (readerRef.current && initialScrollPosition > 0 && !paginationMode) {
-      if (verticalMode) {
-        readerRef.current.scrollLeft = initialScrollPosition
-      } else {
-        readerRef.current.scrollTop = initialScrollPosition
-      }
     }
-  }, [document, initialScrollPosition, verticalMode, paginationMode, totalPages])
+  }, [document, initialScrollPosition, totalPages])
 
-  // スクロール位置の変更を通知（デバウンス付き）
-  const handleScroll = useCallback(() => {
-    if (!readerRef.current || !onScrollPositionChange) return
-
-    const currentPosition = verticalMode 
-      ? readerRef.current.scrollLeft 
-      : readerRef.current.scrollTop
-
-    // 位置が変わった場合のみ更新
-    if (Math.abs(currentPosition - lastScrollPosition.current) > 10) {
-      lastScrollPosition.current = currentPosition
-
-      // デバウンス処理
-      if (scrollTimeout.current) {
-        clearTimeout(scrollTimeout.current)
-      }
-      
-      scrollTimeout.current = setTimeout(() => {
-        onScrollPositionChange(currentPosition)
-      }, 500) // 500ms後に保存
-    }
-  }, [verticalMode, onScrollPositionChange])
-
-  useEffect(() => {
-    const reader = readerRef.current
-    if (!reader) return
-
-    reader.addEventListener('scroll', handleScroll)
-    return () => {
-      reader.removeEventListener('scroll', handleScroll)
-      if (scrollTimeout.current) {
-        clearTimeout(scrollTimeout.current)
-      }
-    }
-  }, [handleScroll])
   // ノードをReact要素に変換
   const renderNode = (node: AozoraNode, index: number): React.ReactElement | string => {
     switch (node.type) {
@@ -371,61 +326,42 @@ export const Reader: React.FC<ReaderProps> = ({
     )
   }
 
-  // ページモード
-  if (paginationMode) {
-    return (
-      <div className="reader-pagination">
-        <Page
-          nodes={currentPageNodes}
-          verticalMode={verticalMode}
-          theme={theme}
-          fontSize={fontSize}
-          lineHeight={lineHeight}
-          rubySize={rubySize}
-          renderNode={renderNode}
-        />
-        
-        {/* ページナビゲーション */}
-        <div className="page-navigation">
-          <button 
-            onClick={goToPreviousPage}
-            disabled={currentPage === 0}
-            className="page-nav-button page-nav-prev"
-            aria-label="前のページ"
-          >
-            {verticalMode ? '→' : '↑'}
-          </button>
-          
-          <span className="page-indicator">
-            {currentPage + 1} / {totalPages}
-          </span>
-          
-          <button 
-            onClick={goToNextPage}
-            disabled={currentPage === totalPages - 1}
-            className="page-nav-button page-nav-next"
-            aria-label="次のページ"
-          >
-            {verticalMode ? '←' : '↓'}
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // スクロールモード（従来の実装）
-  const readerClass = `reader reader-${theme} ${verticalMode ? 'reader-vertical' : 'reader-horizontal'} ruby-${rubySize}`
-  const readerStyle: React.CSSProperties = {
-    fontSize: `${fontSize}px`,
-    lineHeight: lineHeight,
-    padding: !verticalMode ? `${padding}rem` : undefined,
-    '--reader-padding': `${padding}rem`
-  } as React.CSSProperties
-
   return (
-    <div className={readerClass} style={readerStyle} ref={readerRef}>
-      <div className="reader-content">
-        {document.nodes.map((node, index) => renderNode(node, index))}
+    <div className="reader-pagination">
+      <Page
+        nodes={currentPageNodes}
+        verticalMode={verticalMode}
+        theme={theme}
+        fontSize={fontSize}
+        lineHeight={lineHeight}
+        padding={padding}
+        rubySize={rubySize}
+        renderNode={renderNode}
+      />
+      
+      {/* ページナビゲーション */}
+      <div className="page-navigation">
+        <button 
+          onClick={goToPreviousPage}
+          disabled={currentPage === 0}
+          className="page-nav-button page-nav-prev"
+          aria-label="前のページ"
+        >
+          {verticalMode ? '←' : '↑'}
+        </button>
+        
+        <span className="page-indicator">
+          {currentPage + 1} / {totalPages}
+        </span>
+        
+        <button 
+          onClick={goToNextPage}
+          disabled={currentPage === totalPages - 1}
+          className="page-nav-button page-nav-next"
+          aria-label="次のページ"
+        >
+          {verticalMode ? '→' : '↓'}
+        </button>
       </div>
     </div>
   )

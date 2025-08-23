@@ -20,7 +20,6 @@
 /* 横書きページ設定 */
 .page-horizontal {
   writing-mode: horizontal-tb;
-  padding: 2rem;
 }
 
 .page-horizontal .page-content {
@@ -35,12 +34,11 @@
 .page-vertical {
   writing-mode: vertical-rl;
   text-orientation: upright;
-  padding: 2rem;
 }
 
 .page-vertical .page-content {
-  height: 100%;
-  width: 100%;
+  height: calc(100% - var(--page-padding, 4rem));
+  width: calc(100% - var(--page-padding, 4rem));
   column-fill: auto;
   column-gap: 3rem;
 }
@@ -52,8 +50,7 @@
 
 .page-vertical .page-content {
   /* 縦書きの場合は高さに基づいてカラム分割 */
-  height: calc(100% - 4rem);
-  column-width: calc(100vh - 4rem);
+  column-width: calc(100vh - var(--page-padding, 4rem));
 }
 
 /* ルビサイズ設定の継承 */

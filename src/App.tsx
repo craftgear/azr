@@ -234,7 +234,6 @@ const App: React.FC = () => {
             theme={settings.theme}
             padding={settings.padding}
             rubySize={settings.rubySize}
-            paginationMode={settings.paginationMode}
             onScrollPositionChange={handleScrollPositionChange}
             initialScrollPosition={initialScrollPosition}
           />

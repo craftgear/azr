@@ -8,7 +8,6 @@ export type ReaderSettings = {
   theme: 'light' | 'dark'
   padding: number
   rubySize: 'small' | 'normal' | 'large'
-  paginationMode: boolean
 }
 
 type SettingsProps = {
@@ -73,32 +72,6 @@ export const Settings: React.FC<SettingsProps> = ({
                   onChange={() => handleChange('verticalMode', true)}
                 />
                 <span>縦書き</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="settings-group">
-            <label className="settings-label">
-              読書モード
-            </label>
-            <div className="settings-radio-group">
-              <label className="settings-radio">
-                <input
-                  type="radio"
-                  name="readingMode"
-                  checked={!settings.paginationMode}
-                  onChange={() => handleChange('paginationMode', false)}
-                />
-                <span>スクロール</span>
-              </label>
-              <label className="settings-radio">
-                <input
-                  type="radio"
-                  name="readingMode"
-                  checked={settings.paginationMode}
-                  onChange={() => handleChange('paginationMode', true)}
-                />
-                <span>ページ</span>
               </label>
             </div>
           </div>

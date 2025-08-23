@@ -1,0 +1,252 @@
+.reader {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  box-sizing: border-box;
+  transition: background-color 0.3s, color 0.3s, padding 0.3s;
+}
+
+/* テーマ設定 */
+.reader-light {
+  background-color: #ffffff;
+  color: #333333;
+}
+
+.reader-dark {
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+}
+
+/* 横書き設定 */
+.reader-horizontal {
+  writing-mode: horizontal-tb;
+}
+
+.reader-horizontal .reader-content {
+  max-width: 800px;
+  margin: 0 auto;
+  height: 100%;
+}
+
+/* 縦書き設定 */
+.reader-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  height: 100vh;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: var(--reader-padding);
+  box-sizing: border-box;
+}
+
+.reader-vertical .reader-content {
+  height: 100%;
+  min-width: 100%;
+}
+
+/* ルビ設定 */
+ruby {
+  ruby-align: center;
+}
+
+ruby rt {
+  font-size: 0.5em;
+  font-weight: normal;
+}
+
+.reader-vertical ruby {
+  ruby-position: over;
+}
+
+/* 見出し設定 */
+.reader h1 {
+  font-size: 2em;
+  margin: 1em 0;
+  font-weight: bold;
+}
+
+.reader h2 {
+  font-size: 1.5em;
+  margin: 0.8em 0;
+  font-weight: bold;
+}
+
+.reader h3 {
+  font-size: 1.3em;
+  margin: 0.7em 0;
+  font-weight: bold;
+}
+
+.reader h4,
+.reader h5,
+.reader h6 {
+  font-size: 1.1em;
+  margin: 0.5em 0;
+  font-weight: bold;
+}
+
+/* 強調設定 */
+.emphasis {
+  font-weight: bold;
+}
+
+.emphasis-1 {
+  text-decoration: underline;
+}
+
+.emphasis-2 {
+  background-color: rgba(255, 255, 0, 0.3);
+}
+
+.emphasis-3 {
+  border: 1px solid currentColor;
+  padding: 0 0.2em;
+}
+
+/* 空の状態 */
+.reader-empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #999;
+  font-size: 1.2em;
+}
+
+/* スクロールバー設定 */
+.reader::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.reader::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.reader::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.reader::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.reader-dark::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.reader-dark::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.reader-dark::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* 傍点（emphasis dots） */
+.emphasis-dots {
+  position: relative;
+  text-emphasis: '﹅';
+  text-emphasis-position: over right;
+  -webkit-text-emphasis: '﹅';
+  -webkit-text-emphasis-position: over right;
+  /* 傍点のサイズ調整 - フォントサイズの40% */
+  font-size: 1em;
+}
+
+/* 縦書き時の傍点位置調整 */
+.reader-vertical .emphasis-dots {
+  text-emphasis-position: over right;
+  -webkit-text-emphasis-position: over right;
+  text-emphasis: '﹅';
+  -webkit-text-emphasis: '﹅';
+}
+
+/* 横書き時の傍点位置調整 */
+.reader-horizontal .emphasis-dots {
+  text-emphasis-position: over;
+  -webkit-text-emphasis-position: over;
+  text-emphasis: '﹅';
+  -webkit-text-emphasis: '﹅';
+}
+
+/* テキストサイズ変更 */
+.text-size-small {
+  font-size: 0.85em;
+}
+
+.text-size-large {
+  font-size: 1.2em;
+}
+
+/* 見出し（青空文庫形式） */
+.heading-large {
+  font-size: 1.8em;
+  font-weight: bold;
+  margin: 1.5em 0;
+  text-align: center;
+}
+
+.heading-medium {
+  font-size: 1.4em;
+  font-weight: bold;
+  margin: 1.2em 0;
+  text-align: center;
+}
+
+.heading-small {
+  font-size: 1.2em;
+  font-weight: bold;
+  margin: 1em 0;
+}
+
+/* 縦書き時の見出し調整 */
+.reader-vertical .heading-large,
+.reader-vertical .heading-medium,
+.reader-vertical .heading-small {
+  text-align: inherit;
+  margin: 0 1em;
+}
+
+/* ブロック字下げ */
+.block-indent {
+  display: block;
+  margin: 0.5em 0;
+}
+
+/* 縦書き時のブロック字下げ */
+.reader-vertical .block-indent {
+  margin: 0;
+  padding-top: var(--indent-size, 2em);
+  padding-left: 0;
+}
+
+/* 特殊文字（ツールチップ付き） */
+.special-char {
+  cursor: help;
+  border-bottom: 1px dotted currentColor;
+  position: relative;
+}
+
+.special-char:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  font-size: 0.9em;
+  white-space: nowrap;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* ダークモード時の特殊文字ツールチップ */
+.reader-dark .special-char:hover::after {
+  background: rgba(255, 255, 255, 0.9);
+  color: black;
+}

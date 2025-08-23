@@ -1,0 +1,85 @@
+.file-upload-container {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.file-upload-dropzone {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #fafafa;
+}
+
+.file-upload-dropzone:hover {
+  border-color: #4a90e2;
+  background-color: #f0f7ff;
+}
+
+.file-upload-dropzone:focus {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
+}
+
+.file-upload-dropzone.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.file-upload-dropzone.disabled:hover {
+  border-color: #ccc;
+  background-color: #fafafa;
+}
+
+.file-upload-icon {
+  color: #4a90e2;
+  margin-bottom: 1rem;
+}
+
+.file-upload-text {
+  font-size: 1.1rem;
+  color: #333;
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.file-upload-hint {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0;
+}
+
+.file-upload-input {
+  display: none;
+}
+
+/* ドラッグ中のスタイル */
+.file-upload-dropzone.dragging {
+  border-color: #4a90e2;
+  background-color: #e6f2ff;
+  transform: scale(1.02);
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+  .file-upload-dropzone {
+    background-color: #2a2a2a;
+    border-color: #555;
+  }
+
+  .file-upload-dropzone:hover {
+    background-color: #333;
+    border-color: #6ba3f5;
+  }
+
+  .file-upload-text {
+    color: #e0e0e0;
+  }
+
+  .file-upload-hint {
+    color: #aaa;
+  }
+}

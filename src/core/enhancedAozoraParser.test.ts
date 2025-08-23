@@ -74,7 +74,7 @@ describe('enhancedAozoraParser', () => {
 
   describe('見出し（headings）', () => {
     it('should parse medium heading with content', () => {
-      const input = '［＃「第一章」は中見出し］'
+      const input = '第一章［＃「第一章」は中見出し］'
       const result = parseAozoraText(input)
 
       expect(result.nodes).toHaveLength(1)
@@ -86,7 +86,7 @@ describe('enhancedAozoraParser', () => {
     })
 
     it('should parse large heading', () => {
-      const input = '［＃「タイトル」は大見出し］'
+      const input = 'タイトル［＃「タイトル」は大見出し］'
       const result = parseAozoraText(input)
 
       expect(result.nodes).toHaveLength(1)
@@ -98,7 +98,7 @@ describe('enhancedAozoraParser', () => {
     })
 
     it('should parse small heading', () => {
-      const input = '［＃「節」は小見出し］'
+      const input = '節［＃「節」は小見出し］'
       const result = parseAozoraText(input)
 
       expect(result.nodes).toHaveLength(1)

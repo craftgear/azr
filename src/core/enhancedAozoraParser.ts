@@ -139,15 +139,75 @@ const processSpecialTag = (state: ParserState): boolean => {
     return true
   }
   
-  // 見出し
+  // 見出し - 直前のテキストに適用
   const headingMatch = tagContent.match(/^「(.+?)」は(大|中|小)見出し$/)
   if (headingMatch) {
-    const content = headingMatch[1]
+    const targetText = headingMatch[1]
     const levelMap = { '大': 'large', '中': 'medium', '小': 'small' } as const
+    const level = levelMap[headingMatch[2] as '大' | '中' | '小']
+    
+    // 直前のノードを確認して、対象テキストを探す
+    const currentNodes = state.textSizeStack.length > 0 
+      ? state.textSizeStack[state.textSizeStack.length - 1].nodes
+      : state.blockIndentStack.length > 0
+      ? state.blockIndentStack[state.blockIndentStack.length - 1].nodes
+      : state.nodes
+    
+    if (currentNodes.length > 0) {
+      const lastNode = currentNodes[currentNodes.length - 1]
+      if (lastNode.type === 'text') {
+        const textNode = lastNode as { type: 'text', content: string }
+        const targetIndex = textNode.content.lastIndexOf(targetText)
+        
+        if (targetIndex !== -1) {
+          // テキストノードから対象部分を切り出して見出しノードに置き換え
+          const beforeText = textNode.content.substring(0, targetIndex)
+          const afterText = textNode.content.substring(targetIndex + targetText.length)
+          
+          // 元のテキストノードを更新または削除
+          if (beforeText) {
+            textNode.content = beforeText
+          } else {
+            currentNodes.pop()
+          }
+          
+          // 見出しノードを追加
+          if (state.textSizeStack.length > 0) {
+            state.textSizeStack[state.textSizeStack.length - 1].nodes.push({
+              type: 'heading',
+              content: targetText,
+              level
+            })
+          } else if (state.blockIndentStack.length > 0) {
+            state.blockIndentStack[state.blockIndentStack.length - 1].nodes.push({
+              type: 'heading',
+              content: targetText,
+              level
+            })
+          } else {
+            state.nodes.push({
+              type: 'heading',
+              content: targetText,
+              level
+            })
+          }
+          
+          // 残りのテキストがあれば追加
+          if (afterText) {
+            addNode(state, { type: 'text', content: afterText })
+          }
+          
+          state.currentPosition = tagEnd + 1
+          return true
+        }
+      }
+    }
+    
+    // 対象テキストが見つからない場合は、単独の見出しノードとして追加
     addNode(state, {
       type: 'heading',
-      content,
-      level: levelMap[headingMatch[2] as '大' | '中' | '小']
+      content: targetText,
+      level
     })
     state.currentPosition = tagEnd + 1
     return true

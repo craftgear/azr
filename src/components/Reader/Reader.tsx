@@ -460,10 +460,10 @@ export const Reader: React.FC<ReaderProps> = ({
       {/* ページナビゲーション */}
       <div className="page-navigation">
         <button 
-          onClick={goToPreviousPage}
-          disabled={currentPage === 0}
+          onClick={goToNextPage}
+          disabled={currentPage === totalPages - 1}
           className="page-nav-button page-nav-prev"
-          aria-label="前のページ"
+          aria-label="次のページ"
         >
           {verticalMode ? '←' : '↑'}
         </button>
@@ -473,10 +473,10 @@ export const Reader: React.FC<ReaderProps> = ({
         </span>
         
         <button 
-          onClick={goToNextPage}
-          disabled={currentPage === totalPages - 1}
+          onClick={goToPreviousPage}
+          disabled={currentPage === 0}
           className="page-nav-button page-nav-next"
-          aria-label="次のページ"
+          aria-label="前のページ"
         >
           {verticalMode ? '→' : '↓'}
         </button>

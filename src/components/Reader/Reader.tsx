@@ -9,7 +9,8 @@ type ReaderProps = {
   fontSize?: number
   lineHeight?: number
   theme?: 'light' | 'dark'
-  padding?: number
+  paddingVertical?: number
+  paddingHorizontal?: number
   rubySize?: 'small' | 'normal' | 'large'
   onScrollPositionChange?: (position: number) => void
   initialScrollPosition?: number
@@ -21,7 +22,8 @@ export const Reader: React.FC<ReaderProps> = ({
   fontSize = 16,
   lineHeight = 1.8,
   theme = 'light',
-  padding = 2,
+  paddingVertical = 2,
+  paddingHorizontal = 2,
   rubySize = 'normal',
   onScrollPositionChange,
   initialScrollPosition = 0
@@ -50,7 +52,7 @@ export const Reader: React.FC<ReaderProps> = ({
     if (totalPages > 0) {
       currentPageProgressRef.current = currentPage / totalPages
     }
-  }, [fontSize, lineHeight, padding, verticalMode, rubySize])
+  }, [fontSize, lineHeight, paddingVertical, paddingHorizontal, verticalMode, rubySize])
 
   // ページ分割計算（文章の区切りを考慮）
   const paginatedNodes = useMemo(() => {
@@ -117,10 +119,11 @@ export const Reader: React.FC<ReaderProps> = ({
     let pendingNode: AozoraNode | null = null
     
     // 1ページあたりの目安文字数（フォントサイズと画面サイズから推定）
-    const paddingPx = padding * 16 * 2
+    const paddingVerticalPx = paddingVertical * 16 * 2
+    const paddingHorizontalPx = paddingHorizontal * 16 * 2
     const charsPerPage = verticalMode 
-      ? Math.floor((windowSize.height - paddingPx - 100) / fontSize) * Math.floor((windowSize.width - paddingPx - 100) / (fontSize * lineHeight))
-      : Math.floor((windowSize.height - paddingPx - 200) / (fontSize * lineHeight)) * Math.floor((windowSize.width - paddingPx - 100) / fontSize)
+      ? Math.floor((windowSize.height - paddingVerticalPx - 100) / fontSize) * Math.floor((windowSize.width - paddingHorizontalPx - 100) / (fontSize * lineHeight))
+      : Math.floor((windowSize.height - paddingVerticalPx - 200) / (fontSize * lineHeight)) * Math.floor((windowSize.width - paddingHorizontalPx - 100) / fontSize)
     
     const maxCharsPerPage = Math.max(100, charsPerPage)
     
@@ -129,7 +132,8 @@ export const Reader: React.FC<ReaderProps> = ({
       windowSize,
       fontSize,
       lineHeight,
-      padding,
+      paddingVertical,
+      paddingHorizontal,
       rubySize,
       charsPerPage,
       maxCharsPerPage,
@@ -202,7 +206,7 @@ export const Reader: React.FC<ReaderProps> = ({
     setTotalPages(Math.max(1, pages.length))
     
     return pages
-  }, [document, verticalMode, fontSize, lineHeight, padding, windowSize, rubySize])
+  }, [document, verticalMode, fontSize, lineHeight, paddingVertical, paddingHorizontal, windowSize, rubySize])
 
   // ページ再計算時に読書位置を維持
   useEffect(() => {
@@ -452,7 +456,8 @@ export const Reader: React.FC<ReaderProps> = ({
         theme={theme}
         fontSize={fontSize}
         lineHeight={lineHeight}
-        padding={padding}
+        paddingVertical={paddingVertical}
+        paddingHorizontal={paddingHorizontal}
         rubySize={rubySize}
         renderNode={renderNode}
       />

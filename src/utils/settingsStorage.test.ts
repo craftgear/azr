@@ -17,7 +17,8 @@ describe('settingsStorage', () => {
         fontSize: 16,
         lineHeight: 1.8,
         theme: 'light',
-        padding: 2,
+        paddingVertical: 2,
+        paddingHorizontal: 2,
         rubySize: 'normal'
       })
     })
@@ -28,7 +29,8 @@ describe('settingsStorage', () => {
         fontSize: 20,
         lineHeight: 2.0,
         theme: 'dark',
-        padding: 3,
+        paddingVertical: 3,
+        paddingHorizontal: 3,
         rubySize: 'large'
       }
       
@@ -48,8 +50,34 @@ describe('settingsStorage', () => {
         fontSize: 16,
         lineHeight: 1.8,
         theme: 'light',
-        padding: 2,
+        paddingVertical: 2,
+        paddingHorizontal: 2,
         rubySize: 'normal'
+      })
+    })
+
+    it('旧形式のpadding設定を移行する', () => {
+      const oldSettings = {
+        verticalMode: false,
+        fontSize: 20,
+        lineHeight: 2.0,
+        theme: 'dark',
+        padding: 3,
+        rubySize: 'large'
+      }
+      
+      localStorage.setItem('readerSettings', JSON.stringify(oldSettings))
+      
+      const settings = settingsStorage.loadSettings()
+      
+      expect(settings).toEqual({
+        verticalMode: false,
+        fontSize: 20,
+        lineHeight: 2.0,
+        theme: 'dark',
+        paddingVertical: 3,
+        paddingHorizontal: 3,
+        rubySize: 'large'
       })
     })
 
@@ -68,7 +96,8 @@ describe('settingsStorage', () => {
         fontSize: 24,
         lineHeight: 1.8,
         theme: 'dark',
-        padding: 2,
+        paddingVertical: 2,
+        paddingHorizontal: 2,
         rubySize: 'normal'
       })
     })
@@ -81,7 +110,8 @@ describe('settingsStorage', () => {
         fontSize: 18,
         lineHeight: 2.2,
         theme: 'dark',
-        padding: 1.5,
+        paddingVertical: 1.5,
+        paddingHorizontal: 1.5,
         rubySize: 'small'
       }
       
@@ -98,7 +128,8 @@ describe('settingsStorage', () => {
         fontSize: 16,
         lineHeight: 1.8,
         theme: 'light',
-        padding: 2,
+        paddingVertical: 2,
+        paddingHorizontal: 2,
         rubySize: 'normal'
       }
       

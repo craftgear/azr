@@ -6,7 +6,8 @@ export type ReaderSettings = {
   fontSize: number
   lineHeight: number
   theme: 'light' | 'dark'
-  padding: number
+  paddingVertical: number
+  paddingHorizontal: number
   rubySize: 'small' | 'normal' | 'large'
 }
 
@@ -134,17 +135,33 @@ export const Settings: React.FC<SettingsProps> = ({
           </div>
 
           <div className="settings-group">
-            <label className="settings-label" htmlFor="padding">
-              余白: {settings.padding}rem
+            <label className="settings-label" htmlFor="paddingVertical">
+              上下余白: {settings.paddingVertical}rem
             </label>
             <input
-              id="padding"
+              id="paddingVertical"
               type="range"
-              min="0.5"
-              max="4"
+              min="2"
+              max="8"
               step="0.5"
-              value={settings.padding}
-              onChange={(e) => handleChange('padding', Number(e.target.value))}
+              value={settings.paddingVertical}
+              onChange={(e) => handleChange('paddingVertical', Number(e.target.value))}
+              className="settings-slider"
+            />
+          </div>
+
+          <div className="settings-group">
+            <label className="settings-label" htmlFor="paddingHorizontal">
+              左右余白: {settings.paddingHorizontal}rem
+            </label>
+            <input
+              id="paddingHorizontal"
+              type="range"
+              min="2"
+              max="8"
+              step="0.5"
+              value={settings.paddingHorizontal}
+              onChange={(e) => handleChange('paddingHorizontal', Number(e.target.value))}
               className="settings-slider"
             />
           </div>

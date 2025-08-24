@@ -7,7 +7,8 @@ const DEFAULT_SETTINGS: ReaderSettings = {
   fontSize: 16,
   lineHeight: 1.8,
   theme: 'light',
-  padding: 2,
+  paddingVertical: 2,
+  paddingHorizontal: 2,
   rubySize: 'normal'
 }
 
@@ -23,6 +24,13 @@ export const settingsStorage = {
       }
       
       const parsed = JSON.parse(saved)
+      
+      // 旧形式からの移行処理
+      if ('padding' in parsed && !('paddingVertical' in parsed)) {
+        parsed.paddingVertical = parsed.padding
+        parsed.paddingHorizontal = parsed.padding
+        delete parsed.padding
+      }
       
       // デフォルト値で補完
       return {

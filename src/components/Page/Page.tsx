@@ -8,7 +8,8 @@ type PageProps = {
   theme: 'light' | 'dark'
   fontSize: number
   lineHeight: number
-  padding: number
+  paddingVertical: number
+  paddingHorizontal: number
   rubySize: 'small' | 'normal' | 'large'
   renderNode: (node: AozoraNode, index: number) => React.ReactElement | string
 }
@@ -19,7 +20,8 @@ export const Page: React.FC<PageProps> = ({
   theme,
   fontSize,
   lineHeight,
-  padding,
+  paddingVertical,
+  paddingHorizontal,
   rubySize,
   renderNode
 }) => {
@@ -28,8 +30,9 @@ export const Page: React.FC<PageProps> = ({
   const pageStyle: React.CSSProperties = {
     fontSize: `${fontSize}px`,
     lineHeight: lineHeight,
-    padding: `${padding}rem`,
-    '--page-padding': `${padding}rem`
+    padding: `${paddingVertical}rem ${paddingHorizontal}rem`,
+    '--page-padding-vertical': `${paddingVertical}rem`,
+    '--page-padding-horizontal': `${paddingHorizontal}rem`
   } as React.CSSProperties
 
   return (

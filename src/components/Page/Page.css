@@ -8,6 +8,11 @@
   flex-direction: column;
 }
 
+/* ページコンテンツ基本設定 */
+.page-content {
+  box-sizing: border-box;
+}
+
 /* テーマ設定 */
 .page-light {
   background-color: #ffffff;
@@ -28,6 +33,7 @@
   max-width: 800px;
   margin: 0 auto;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   column-fill: auto;
   column-gap: 3rem;
@@ -37,10 +43,13 @@
 .page-vertical {
   writing-mode: vertical-rl;
   text-orientation: upright;
+  flex-direction: row;
 }
 
 .page-vertical .page-content {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
   column-fill: auto;
   column-gap: 3rem;

@@ -4,6 +4,8 @@
   overflow: hidden;
   box-sizing: border-box;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 /* テーマ設定 */
@@ -25,7 +27,8 @@
 .page-horizontal .page-content {
   max-width: 800px;
   margin: 0 auto;
-  height: 100%;
+  flex: 1;
+  overflow: hidden;
   column-fill: auto;
   column-gap: 3rem;
 }
@@ -37,8 +40,8 @@
 }
 
 .page-vertical .page-content {
-  height: 100%;
-  width: 100%;
+  flex: 1;
+  overflow: hidden;
   column-fill: auto;
   column-gap: 3rem;
 }

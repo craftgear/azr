@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import type { ParsedAozoraDocument, AozoraNode } from '../../types/aozora'
 import { Page } from '../Page/Page'
+import { splitTextNodeAtSentence } from '../../core/enhancedAozoraParser'
 import './Reader.css'
 
 type ReaderProps = {
@@ -35,12 +36,12 @@ export const Reader: React.FC<ReaderProps> = ({
 
   // ウィンドウサイズの追跡（ページ再計算用）
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight })
-  
+
   useEffect(() => {
     const handleResize = () => {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight })
     }
-    
+
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
@@ -59,84 +60,32 @@ export const Reader: React.FC<ReaderProps> = ({
   // ページ分割計算（文章の区切りを考慮）
   const paginatedNodes = useMemo(() => {
     if (!document) return []
-    
-    // 文の終わりを検出する関数
-    const isSentenceEnd = (text: string): boolean => {
-      const sentenceEnders = ['。', '！', '？', '」', '』', '）', '.', '!', '?', '、']
-      return sentenceEnders.some(ender => text.endsWith(ender))
-    }
-    
-    // ノードを文の区切りで分割する関数
-    const splitTextNodeAtSentence = (node: AozoraNode, remainingChars: number): { 
-      beforeSplit: AozoraNode | null, 
-      afterSplit: AozoraNode | null 
-    } => {
-      if (node.type !== 'text') {
-        return { beforeSplit: node, afterSplit: null }
-      }
-      
-      const text = node.content
-      if (text.length <= remainingChars) {
-        return { beforeSplit: node, afterSplit: null }
-      }
-      
-      // 残り文字数内で最後の文の終わりを探す
-      let splitIndex = -1
-      for (let i = Math.min(remainingChars, text.length - 1); i >= 0; i--) {
-        if (isSentenceEnd(text.substring(0, i + 1))) {
-          splitIndex = i + 1
-          break
-        }
-      }
-      
-      // 文の終わりが見つからない場合は、句読点で区切る
-      if (splitIndex === -1) {
-        const punctuation = ['、', '，', ',', '；', ';', '：', ':']
-        for (let i = Math.min(remainingChars, text.length - 1); i >= 0; i--) {
-          if (punctuation.includes(text[i])) {
-            splitIndex = i + 1
-            break
-          }
-        }
-      }
-      
-      // それでも見つからない場合は、残り文字数で強制的に区切る
-      if (splitIndex === -1) {
-        splitIndex = Math.min(remainingChars, text.length)
-      }
-      
-      const beforeText = text.substring(0, splitIndex)
-      const afterText = text.substring(splitIndex)
-      
-      return {
-        beforeSplit: beforeText ? { type: 'text', content: beforeText } : null,
-        afterSplit: afterText ? { type: 'text', content: afterText } : null
-      }
-    }
-    
+
+
+
     // ページ分割処理
     const pages: AozoraNode[][] = []
     let currentPageNodes: AozoraNode[] = []
     let currentPageCharCount = 0
     let pendingNode: AozoraNode | null = null
-    
+
     // 1ページあたりの目安文字数（フォントサイズと画面サイズから推定）
-    const paddingVerticalPx = paddingVertical * 16 * 2
-    const paddingHorizontalPx = paddingHorizontal * 16 * 2
-    
+    // paddingはfontSizeを基準に計算（remの代わりにem相当の計算）
+    const paddingVerticalPx = paddingVertical * fontSize * 2
+    const paddingHorizontalPx = paddingHorizontal * fontSize * 2
+
     // より正確な計算: ナビゲーションバーの高さも考慮
     const navHeight = 80 // ナビゲーションバーの高さ（px）
     const availableHeight = windowSize.height - paddingVerticalPx - navHeight
     const availableWidth = windowSize.width - paddingHorizontalPx
-    
-    const charsPerPage = verticalMode 
+
+    const charsPerPage = verticalMode
       ? Math.floor(availableHeight / fontSize) * Math.floor(availableWidth / (fontSize * lineHeight))
       : Math.floor(availableHeight / (fontSize * lineHeight)) * Math.floor(availableWidth / fontSize)
-    
-    // 安全マージン: 計算値の90%を使用してオーバーフローを防ぐ
-    const safeCharsPerPage = Math.floor(charsPerPage * 0.9)
-    const maxCharsPerPage = Math.max(100, safeCharsPerPage)
-    
+
+    // 安全マージンを削除し、計算値を100%使用
+    const maxCharsPerPage = Math.max(100, charsPerPage)
+
     console.log('Page calculation:', {
       verticalMode,
       windowSize,
@@ -149,11 +98,11 @@ export const Reader: React.FC<ReaderProps> = ({
       maxCharsPerPage,
       totalNodes: document.nodes.length
     })
-    
+
     for (let i = 0; i < document.nodes.length; i++) {
       let node = pendingNode || document.nodes[i]
       pendingNode = null
-      
+
       // ノードの文字数を計算
       let nodeCharCount = 0
       if (node.type === 'text') {
@@ -165,34 +114,41 @@ export const Reader: React.FC<ReaderProps> = ({
       } else if (node.type === 'heading') {
         nodeCharCount = node.content.length + 20
       }
-      
+
       // 見出しは常に新しいページから始める（ページに何か入っている場合）
       if (node.type === 'heading' && currentPageNodes.length > 0 && currentPageCharCount > 0) {
         pages.push([...currentPageNodes])
         currentPageNodes = []
         currentPageCharCount = 0
       }
-      
+
       // ページに収まるか確認
       if (currentPageCharCount + nodeCharCount > maxCharsPerPage && currentPageNodes.length > 0) {
         // テキストノードの場合、文の区切りで分割を試みる
         if (node.type === 'text') {
           const remainingChars = maxCharsPerPage - currentPageCharCount
           const { beforeSplit, afterSplit } = splitTextNodeAtSentence(node, remainingChars)
-          
+
           if (beforeSplit) {
+            // 分割できた場合は、前半を現在のページに追加
             currentPageNodes.push(beforeSplit)
-          }
-          
-          // 現在のページを確定
-          pages.push([...currentPageNodes])
-          currentPageNodes = []
-          currentPageCharCount = 0
-          
-          // 残りを次のページへ
-          if (afterSplit) {
-            pendingNode = afterSplit
-            i-- // 同じインデックスを再処理
+            // 現在のページを確定
+            pages.push([...currentPageNodes])
+            currentPageNodes = []
+            currentPageCharCount = 0
+
+            // 残りを次のページへ
+            if (afterSplit) {
+              pendingNode = afterSplit
+              i-- // 同じインデックスを再処理
+            }
+          } else {
+            // 分割できない場合は、現在のページを確定して、全体を次のページへ
+            if (currentPageNodes.length > 0) {
+              pages.push([...currentPageNodes])
+            }
+            currentPageNodes = [node]
+            currentPageCharCount = nodeCharCount
           }
         } else {
           // テキスト以外のノードは分割しない
@@ -206,15 +162,15 @@ export const Reader: React.FC<ReaderProps> = ({
         currentPageCharCount += nodeCharCount
       }
     }
-    
+
     // 最後のページを追加
     if (currentPageNodes.length > 0) {
       pages.push(currentPageNodes)
     }
-    
+
     // ページ数を更新
     setTotalPages(Math.max(1, pages.length))
-    
+
     return pages
   }, [document, verticalMode, fontSize, lineHeight, paddingVertical, paddingHorizontal, windowSize, rubySize])
 
@@ -225,7 +181,7 @@ export const Reader: React.FC<ReaderProps> = ({
       const readingProgress = currentPageProgressRef.current || (currentPage / prevTotalPagesRef.current)
       const newPage = Math.round(readingProgress * totalPages)
       const validNewPage = Math.min(Math.max(0, newPage), totalPages - 1)
-      
+
       console.log('Recalculating page position:', {
         oldPages: prevTotalPagesRef.current,
         newPages: totalPages,
@@ -233,7 +189,7 @@ export const Reader: React.FC<ReaderProps> = ({
         oldPage: currentPage,
         newPage: validNewPage
       })
-      
+
       setCurrentPage(validNewPage)
     }
     prevTotalPagesRef.current = totalPages
@@ -339,7 +295,7 @@ export const Reader: React.FC<ReaderProps> = ({
       case 'text':
         // 改行を処理
         const parts = node.content.split('\n')
-        
+
         const processTextPart = (text: string) => {
           // 縦書きモードで連続するハイフンまたはダッシュを検出
           if (verticalMode && /[-—－ー─]{2,}/.test(text)) {
@@ -355,11 +311,11 @@ export const Reader: React.FC<ReaderProps> = ({
           }
           return text
         }
-        
+
         if (parts.length === 1) {
           return processTextPart(parts[0])
         }
-        
+
         return (
           <React.Fragment key={index}>
             {parts.map((part, i) => (
@@ -370,7 +326,7 @@ export const Reader: React.FC<ReaderProps> = ({
             ))}
           </React.Fragment>
         )
-      
+
       case 'ruby':
         return (
           <ruby key={index}>
@@ -378,7 +334,7 @@ export const Reader: React.FC<ReaderProps> = ({
             <rt>{node.reading}</rt>
           </ruby>
         )
-      
+
       // 傍点（emphasis dots）
       case 'emphasis_dots':
         return (
@@ -386,7 +342,7 @@ export const Reader: React.FC<ReaderProps> = ({
             {node.text}
           </span>
         )
-      
+
       // テキストサイズ変更
       case 'text_size':
         return (
@@ -394,7 +350,7 @@ export const Reader: React.FC<ReaderProps> = ({
             {node.content.map((child, i) => renderNode(child, i))}
           </span>
         )
-      
+
       // 見出し
       case 'heading':
         const HeadingClass = `heading-${node.level}`
@@ -405,23 +361,23 @@ export const Reader: React.FC<ReaderProps> = ({
         } else {
           return <h4 key={index} className={HeadingClass}>{node.content}</h4>
         }
-      
+
       // ブロック字下げ
       case 'block_indent':
         return (
-          <div 
-            key={index} 
+          <div
+            key={index}
             className="block-indent"
             style={{ paddingLeft: `${node.indent}em` }}
           >
             {node.content.map((child, i) => renderNode(child, i))}
           </div>
         )
-      
+
       // 特殊文字説明（ツールチップとして表示）
       case 'special_char_note':
         return (
-          <span 
+          <span
             key={index}
             className="special-char"
             title={node.description}
@@ -429,7 +385,7 @@ export const Reader: React.FC<ReaderProps> = ({
             {node.char}
           </span>
         )
-      
+
       case 'header':
         const HeaderTag = `h${Math.min(Math.max(node.level, 1), 6)}` as keyof JSX.IntrinsicElements
         return (
@@ -437,14 +393,14 @@ export const Reader: React.FC<ReaderProps> = ({
             {node.content}
           </HeaderTag>
         )
-      
+
       case 'emphasis':
         return (
           <span key={index} className={`emphasis emphasis-${node.level}`}>
             {node.content}
           </span>
         )
-      
+
       default:
         return ''
     }
@@ -471,10 +427,10 @@ export const Reader: React.FC<ReaderProps> = ({
         rubySize={rubySize}
         renderNode={renderNode}
       />
-      
+
       {/* ページナビゲーション */}
       <div className={`page-navigation ${isNavigationVisible ? 'nav-visible' : 'nav-hidden'}`}>
-        <button 
+        <button
           onClick={goToNextPage}
           disabled={currentPage === totalPages - 1}
           className="page-nav-button page-nav-prev"
@@ -482,12 +438,12 @@ export const Reader: React.FC<ReaderProps> = ({
         >
           {verticalMode ? '←' : '↑'}
         </button>
-        
+
         <span className="page-indicator">
           {currentPage + 1} / {totalPages}
         </span>
-        
-        <button 
+
+        <button
           onClick={goToPreviousPage}
           disabled={currentPage === 0}
           className="page-nav-button page-nav-next"

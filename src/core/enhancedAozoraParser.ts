@@ -8,6 +8,8 @@ import type {
   SpecialCharNote 
 } from '../types/aozora'
 
+import { isSentenceEnd } from '../utils/textUtils'
+
 type ParserState = {
   nodes: AozoraNode[]
   currentPosition: number
@@ -451,4 +453,54 @@ const isJapaneseChar = (char: string): boolean => {
     (code >= 0x3400 && code <= 0x4dbf)
   )
   // ひらがなとカタカナは除外（ルビは漢字にのみ適用）
+}
+
+
+// ノードを文の区切りで分割する関数
+export const splitTextNodeAtSentence = (node: AozoraNode, remainingChars: number): { 
+  beforeSplit: AozoraNode | null, 
+  afterSplit: AozoraNode | null 
+} => {
+  if (node.type !== 'text') {
+    return { beforeSplit: node, afterSplit: null }
+  }
+  
+  const text = node.content
+  if (text.length <= remainingChars) {
+    return { beforeSplit: node, afterSplit: null }
+  }
+  
+  // 残り文字数内で最後の文の終わりを探す
+  let splitIndex = -1
+  for (let i = Math.min(remainingChars, text.length - 1); i >= 0; i--) {
+    if (isSentenceEnd(text.substring(0, i + 1))) {
+      splitIndex = i + 1
+      break
+    }
+  }
+  
+  // 文の終わりが見つからない場合は、句読点で区切る
+  if (splitIndex === -1) {
+    const punctuation = ['、', '，', ',', '；', ';', '：', ':']
+    for (let i = Math.min(remainingChars, text.length - 1); i >= 0; i--) {
+      if (punctuation.includes(text[i])) {
+        splitIndex = i + 1
+        break
+      }
+    }
+  }
+  
+  // それでも見つからない場合は、分割しない（次のページへ全体を移動）
+  if (splitIndex === -1) {
+    // 残りスペースが少ない場合は、全体を次のページへ
+    return { beforeSplit: null, afterSplit: node }
+  }
+  
+  const beforeText = text.substring(0, splitIndex)
+  const afterText = text.substring(splitIndex)
+  
+  return {
+    beforeSplit: beforeText ? { type: 'text', content: beforeText } : null,
+    afterSplit: afterText ? { type: 'text', content: afterText } : null
+  }
 }

@@ -24,7 +24,9 @@ const App: React.FC = () => {
     settingsStorage.loadSettings()
   )
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
+  const [isNavigationVisible, setIsNavigationVisible] = useState(true)
   const headerTimeoutRef = useRef<NodeJS.Timeout | undefined>()
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | undefined>()
 
   // 設定の変更を保存
   useEffect(() => {
@@ -40,30 +42,54 @@ const App: React.FC = () => {
       clearTimeout(headerTimeoutRef.current)
     }
     
-    // 2秒後に非表示にする（ドキュメントが開いている場合のみ）
+    // 1秒後に非表示にする（ドキュメントが開いている場合のみ）
     if (document) {
       headerTimeoutRef.current = setTimeout(() => {
         setIsHeaderVisible(false)
-      }, 2000)
+      }, 1000)
     }
   }, [document])
 
-  // マウス移動時にヘッダーを表示
+  // ナビゲーションの自動非表示機能
+  const showNavigation = useCallback(() => {
+    setIsNavigationVisible(true)
+    
+    // 既存のタイマーをクリア
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current)
+    }
+    
+    // 1秒後に非表示にする（ドキュメントが開いている場合のみ）
+    if (document) {
+      navigationTimeoutRef.current = setTimeout(() => {
+        setIsNavigationVisible(false)
+      }, 1000)
+    }
+  }, [document])
+
+  // マウス移動時にヘッダーまたはナビゲーションを表示
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      // 画面上部100pxの範囲にマウスがある場合
+      // 画面上部100pxの範囲にマウスがある場合はヘッダーを表示
       if (e.clientY < 100) {
         showHeader()
+      }
+      // 画面下部100pxの範囲にマウスがある場合はナビゲーションを表示
+      if (e.clientY > window.innerHeight - 100) {
+        showNavigation()
       }
     }
 
     window.addEventListener('mousemove', handleMouseMove)
     
-    // 初期表示後、2秒で非表示
+    // 初期表示後、1秒で非表示
     if (document) {
       headerTimeoutRef.current = setTimeout(() => {
         setIsHeaderVisible(false)
-      }, 2000)
+      }, 1000)
+      navigationTimeoutRef.current = setTimeout(() => {
+        setIsNavigationVisible(false)
+      }, 1000)
     }
     
     return () => {
@@ -71,8 +97,11 @@ const App: React.FC = () => {
       if (headerTimeoutRef.current) {
         clearTimeout(headerTimeoutRef.current)
       }
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current)
+      }
     }
-  }, [document, showHeader])
+  }, [document, showHeader, showNavigation])
 
   // 最後に開いた本を読み込む
   useEffect(() => {
@@ -282,6 +311,7 @@ const App: React.FC = () => {
             rubySize={settings.rubySize}
             onScrollPositionChange={handleScrollPositionChange}
             initialScrollPosition={initialScrollPosition}
+            isNavigationVisible={isNavigationVisible}
           />
         )}
       </main>

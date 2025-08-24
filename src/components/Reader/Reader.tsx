@@ -14,6 +14,7 @@ type ReaderProps = {
   rubySize?: 'small' | 'normal' | 'large'
   onScrollPositionChange?: (position: number) => void
   initialScrollPosition?: number
+  isNavigationVisible?: boolean
 }
 
 export const Reader: React.FC<ReaderProps> = ({
@@ -26,7 +27,8 @@ export const Reader: React.FC<ReaderProps> = ({
   paddingHorizontal = 2,
   rubySize = 'normal',
   onScrollPositionChange,
-  initialScrollPosition = 0
+  initialScrollPosition = 0,
+  isNavigationVisible = true
 }) => {
   const [currentPage, setCurrentPage] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -121,11 +123,19 @@ export const Reader: React.FC<ReaderProps> = ({
     // 1ページあたりの目安文字数（フォントサイズと画面サイズから推定）
     const paddingVerticalPx = paddingVertical * 16 * 2
     const paddingHorizontalPx = paddingHorizontal * 16 * 2
-    const charsPerPage = verticalMode 
-      ? Math.floor((windowSize.height - paddingVerticalPx - 100) / fontSize) * Math.floor((windowSize.width - paddingHorizontalPx - 100) / (fontSize * lineHeight))
-      : Math.floor((windowSize.height - paddingVerticalPx - 200) / (fontSize * lineHeight)) * Math.floor((windowSize.width - paddingHorizontalPx - 100) / fontSize)
     
-    const maxCharsPerPage = Math.max(100, charsPerPage)
+    // より正確な計算: ナビゲーションバーの高さも考慮
+    const navHeight = 80 // ナビゲーションバーの高さ（px）
+    const availableHeight = windowSize.height - paddingVerticalPx - navHeight
+    const availableWidth = windowSize.width - paddingHorizontalPx
+    
+    const charsPerPage = verticalMode 
+      ? Math.floor(availableHeight / fontSize) * Math.floor(availableWidth / (fontSize * lineHeight))
+      : Math.floor(availableHeight / (fontSize * lineHeight)) * Math.floor(availableWidth / fontSize)
+    
+    // 安全マージン: 計算値の90%を使用してオーバーフローを防ぐ
+    const safeCharsPerPage = Math.floor(charsPerPage * 0.9)
+    const maxCharsPerPage = Math.max(100, safeCharsPerPage)
     
     console.log('Page calculation:', {
       verticalMode,
@@ -463,7 +473,7 @@ export const Reader: React.FC<ReaderProps> = ({
       />
       
       {/* ページナビゲーション */}
-      <div className="page-navigation">
+      <div className={`page-navigation ${isNavigationVisible ? 'nav-visible' : 'nav-hidden'}`}>
         <button 
           onClick={goToNextPage}
           disabled={currentPage === totalPages - 1}

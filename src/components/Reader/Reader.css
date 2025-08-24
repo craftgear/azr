@@ -300,6 +300,18 @@ ruby rt {
   padding: 10px 20px;
   border-radius: 25px;
   z-index: 1000;
+  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+.page-navigation.nav-visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+.page-navigation.nav-hidden {
+  transform: translateX(-50%) translateY(100px);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .page-nav-button {

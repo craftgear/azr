@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import type { ParsedAozoraDocument, AozoraNode } from '../../types/aozora'
 import './Reader.css'
 
@@ -20,6 +20,7 @@ export const Reader: React.FC<ReaderProps> = ({
   rubySize = 'normal',
 }) => {
   const readerRef = useRef<HTMLDivElement>(null)
+  const [visibleDimensions, setVisibleDimensions] = useState({ cols: 0, rows: 0 })
 
   useEffect(() => {
     const smoothScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 300) => {
@@ -80,6 +81,66 @@ export const Reader: React.FC<ReaderProps> = ({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [verticalMode])
+
+  // 表示可能な行数と列数を計算
+  useEffect(() => {
+    const calculateVisibleDimensions = () => {
+      if (!readerRef.current) return
+
+      const element = readerRef.current
+      const computedStyle = window.getComputedStyle(element)
+      
+      // 実際のフォントサイズとline-heightを取得
+      const actualFontSize = parseFloat(computedStyle.fontSize)
+      const actualLineHeight = parseFloat(computedStyle.lineHeight) || actualFontSize * lineHeight
+      
+      // パディングを考慮した実際の表示エリアサイズ
+      const paddingTop = parseFloat(computedStyle.paddingTop) || 0
+      const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
+      const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0
+      const paddingRight = parseFloat(computedStyle.paddingRight) || 0
+      
+      const visibleHeight = element.clientHeight - paddingTop - paddingBottom
+      const visibleWidth = element.clientWidth - paddingLeft - paddingRight
+      
+      if (verticalMode) {
+        // 縦書きモード: 文字は縦に並ぶ
+        const charHeight = actualFontSize // 縦書き時、1文字の高さ = フォントサイズ
+        const colWidth = actualLineHeight // 縦書き時の列幅
+        
+        const rows = Math.floor(visibleHeight / charHeight)
+        const cols = Math.floor(visibleWidth / colWidth)
+        
+        setVisibleDimensions({ cols, rows })
+      } else {
+        // 横書きモード: 文字は横に並ぶ
+        const charWidth = actualFontSize * 0.5 // 平均的な文字幅（概算）
+        const rowHeight = actualLineHeight
+        
+        const cols = Math.floor(visibleWidth / charWidth)
+        const rows = Math.floor(visibleHeight / rowHeight)
+        
+        setVisibleDimensions({ cols, rows })
+      }
+    }
+
+    calculateVisibleDimensions()
+
+    // リサイズとスクロールイベントに対応
+    const handleResize = () => calculateVisibleDimensions()
+    window.addEventListener('resize', handleResize)
+    
+    // フォントサイズやモードが変更された時も再計算
+    const observer = new ResizeObserver(calculateVisibleDimensions)
+    if (readerRef.current) {
+      observer.observe(readerRef.current)
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      observer.disconnect()
+    }
+  }, [verticalMode, fontSize, lineHeight])
 
   // ノードのレンダリング関数
   const renderNode = (node: AozoraNode, index: number): React.ReactElement | string => {
@@ -206,8 +267,14 @@ export const Reader: React.FC<ReaderProps> = ({
   }
 
   return (
-    <div ref={readerRef} className={readerClass} style={readerStyle}>
-      {document.nodes.map((node, index) => renderNode(node, index))}
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <div ref={readerRef} className={readerClass} style={readerStyle}>
+        {document.nodes.map((node, index) => renderNode(node, index))}
+      </div>
+      {/* 表示可能な列数と行数を表示するフローティングラベル */}
+      <div className="dimensions-label">
+        {visibleDimensions.cols} × {visibleDimensions.rows}
+      </div>
     </div>
   )
 }

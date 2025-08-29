@@ -329,3 +329,26 @@ ruby rt {
   min-width: 80px;
   text-align: center;
 }
+
+/* 表示可能な列数と行数のラベル */
+.dimensions-label {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: monospace;
+  z-index: 1000;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.3s ease;
+}
+
+/* ダークモード時のラベル */
+.reader-dark ~ .dimensions-label {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}

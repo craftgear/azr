@@ -479,11 +479,10 @@ export const splitTextNodeAtSentence = (node: AozoraNode, remainingChars: number
     }
   }
   
-  // 文の終わりが見つからない場合は、句読点で区切る
+  // 文の終わりが見つからない場合は、文全体を見て最初の文の終わりを探す
   if (splitIndex === -1) {
-    const punctuation = ['、', '，', ',', '；', ';', '：', ':']
-    for (let i = Math.min(remainingChars, text.length - 1); i >= 0; i--) {
-      if (punctuation.includes(text[i])) {
+    for (let i = 0; i < text.length; i++) {
+      if (isSentenceEnd(text.substring(0, i + 1))) {
         splitIndex = i + 1
         break
       }
@@ -492,7 +491,7 @@ export const splitTextNodeAtSentence = (node: AozoraNode, remainingChars: number
   
   // それでも見つからない場合は、分割しない（次のページへ全体を移動）
   if (splitIndex === -1) {
-    // 残りスペースが少ない場合は、全体を次のページへ
+    // 文の終わりが存在しない場合は、全体を次のページへ
     return { beforeSplit: null, afterSplit: node }
   }
   

@@ -19,14 +19,11 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isLibraryOpen, setIsLibraryOpen] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
-  const [initialScrollPosition, setInitialScrollPosition] = useState(0)
   const [settings, setSettings] = useState<ReaderSettings>(() => 
     settingsStorage.loadSettings()
   )
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
-  const [isNavigationVisible, setIsNavigationVisible] = useState(true)
   const headerTimeoutRef = useRef<NodeJS.Timeout | undefined>()
-  const navigationTimeoutRef = useRef<NodeJS.Timeout | undefined>()
 
   // 設定の変更を保存
   useEffect(() => {
@@ -50,33 +47,12 @@ const App: React.FC = () => {
     }
   }, [document])
 
-  // ナビゲーションの自動非表示機能
-  const showNavigation = useCallback(() => {
-    setIsNavigationVisible(true)
-    
-    // 既存のタイマーをクリア
-    if (navigationTimeoutRef.current) {
-      clearTimeout(navigationTimeoutRef.current)
-    }
-    
-    // 1秒後に非表示にする（ドキュメントが開いている場合のみ）
-    if (document) {
-      navigationTimeoutRef.current = setTimeout(() => {
-        setIsNavigationVisible(false)
-      }, 1000)
-    }
-  }, [document])
-
-  // マウス移動時にヘッダーまたはナビゲーションを表示
+  // マウス移動時にヘッダーを表示
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      // 画面上部100pxの範囲にマウスがある場合はヘッダーを表示
-      if (e.clientY < 100) {
+      // 画面上部50pxの範囲にマウスがある場合はヘッダーを表示
+      if (e.clientY < 50) {
         showHeader()
-      }
-      // 画面下部100pxの範囲にマウスがある場合はナビゲーションを表示
-      if (e.clientY > window.innerHeight - 100) {
-        showNavigation()
       }
     }
 
@@ -87,9 +63,6 @@ const App: React.FC = () => {
       headerTimeoutRef.current = setTimeout(() => {
         setIsHeaderVisible(false)
       }, 1000)
-      navigationTimeoutRef.current = setTimeout(() => {
-        setIsNavigationVisible(false)
-      }, 1000)
     }
     
     return () => {
@@ -97,11 +70,8 @@ const App: React.FC = () => {
       if (headerTimeoutRef.current) {
         clearTimeout(headerTimeoutRef.current)
       }
-      if (navigationTimeoutRef.current) {
-        clearTimeout(navigationTimeoutRef.current)
-      }
     }
-  }, [document, showHeader, showNavigation])
+  }, [document, showHeader])
 
   // 最後に開いた本を読み込む
   useEffect(() => {
@@ -133,7 +103,6 @@ const App: React.FC = () => {
             }
 
             setFileName(title)
-            setInitialScrollPosition(book.readingProgress.lastPosition || 0)
           }
           setIsLoading(false)
         }
@@ -158,6 +127,7 @@ const App: React.FC = () => {
     try {
       const text = await readTextFile(file)
       const parsedDocument = parseAozoraText(text)
+      
       setDocument(parsedDocument)
 
       // ドキュメントからタイトルを抽出
@@ -195,8 +165,6 @@ const App: React.FC = () => {
     }
   }
 
-  // 手動保存機能は削除（自動保存のため不要）
-
   const handleBookSelect = async (book: LibraryBook) => {
     setDocument(book.document)
     setCurrentBookId(book.id)
@@ -221,7 +189,6 @@ const App: React.FC = () => {
     }
 
     setFileName(title)
-    setInitialScrollPosition(book.readingProgress.lastPosition || 0)
   }
 
   const handleNewFile = () => {
@@ -229,18 +196,6 @@ const App: React.FC = () => {
     setError(null)
     setCurrentBookId(null)
     setFileName(null)
-  }
-
-  const handleScrollPositionChange = async (position: number) => {
-    if (!currentBookId || !document) return
-
-    try {
-      await libraryStorage.updateReadingProgress(currentBookId, {
-        lastPosition: position
-      })
-    } catch (err) {
-      console.error('進捗更新エラー:', err)
-    }
   }
 
   return (
@@ -276,9 +231,14 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="app-main">
+      <main 
+        className="app-main"
+        style={{
+          padding: document ? `${settings.paddingVertical}rem ${settings.paddingHorizontal}rem` : undefined
+        }}
+      >
         {isLoading && (
-          <div className="app-loading">
+          <div className="loading-overlay">
             <p>読み込み中...</p>
           </div>
         )}
@@ -306,12 +266,7 @@ const App: React.FC = () => {
             fontSize={settings.fontSize}
             lineHeight={settings.lineHeight}
             theme={settings.theme}
-            paddingVertical={settings.paddingVertical}
-            paddingHorizontal={settings.paddingHorizontal}
             rubySize={settings.rubySize}
-            onScrollPositionChange={handleScrollPositionChange}
-            initialScrollPosition={initialScrollPosition}
-            isNavigationVisible={isNavigationVisible}
           />
         )}
       </main>

@@ -29,11 +29,4 @@
 - use oxlint for linting
 - use prettier for formatting
 
-# when you write Go code,
-- always call mocks with `EXPECT()` instead of `On()`:
-    ```go
-        // You'll only be able to use:
-      mock.EXPECT().Method(arg1, arg2).Return(result)
-      // Instead of this:
-      mock.On("Method", arg1, arg2).Return(result)
-    ```
+# 

@@ -164,6 +164,12 @@
 
 /* ダッシュライン */
 .page-vertical .dash-line {
-  text-orientation: sideways;
-  letter-spacing: -0.1em;
+  /* 縦書き時にダッシュを縦の中央線として表示 */
+  display: inline-block;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  transform: rotate(90deg);
+  margin: 0.5em 0.25em 0.75em 0;
+  line-height: 1;
+  letter-spacing: -0.15em;
 }

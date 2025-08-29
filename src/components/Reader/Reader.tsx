@@ -1,7 +1,5 @@
-import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react'
+import React from 'react'
 import type { ParsedAozoraDocument, AozoraNode } from '../../types/aozora'
-import { Page } from '../Page/Page'
-import { splitTextNodeAtSentence } from '../../core/enhancedAozoraParser'
 import './Reader.css'
 
 type ReaderProps = {
@@ -10,12 +8,7 @@ type ReaderProps = {
   fontSize?: number
   lineHeight?: number
   theme?: 'light' | 'dark'
-  paddingVertical?: number
-  paddingHorizontal?: number
   rubySize?: 'small' | 'normal' | 'large'
-  onScrollPositionChange?: (position: number) => void
-  initialScrollPosition?: number
-  isNavigationVisible?: boolean
 }
 
 export const Reader: React.FC<ReaderProps> = ({
@@ -24,292 +17,27 @@ export const Reader: React.FC<ReaderProps> = ({
   fontSize = 16,
   lineHeight = 1.8,
   theme = 'light',
-  paddingVertical = 2,
-  paddingHorizontal = 2,
   rubySize = 'normal',
-  onScrollPositionChange,
-  initialScrollPosition = 0,
-  isNavigationVisible = true
 }) => {
-  const [currentPage, setCurrentPage] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
 
-  // ウィンドウサイズの追跡（ページ再計算用）
-  const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight })
-
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowSize({ width: window.innerWidth, height: window.innerHeight })
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
-  // 設定変更前の読書位置を保持
-  const prevTotalPagesRef = useRef(totalPages)
-  const currentPageProgressRef = useRef(0) // 現在のページ進捗を保持
-
-  // 設定が変更されたときに現在の進捗を保存
-  useEffect(() => {
-    if (totalPages > 0) {
-      currentPageProgressRef.current = currentPage / totalPages
-    }
-  }, [fontSize, lineHeight, paddingVertical, paddingHorizontal, verticalMode, rubySize])
-
-  // ページ分割計算（文章の区切りを考慮）
-  const paginatedNodes = useMemo(() => {
-    if (!document) return []
-
-
-
-    // ページ分割処理
-    const pages: AozoraNode[][] = []
-    let currentPageNodes: AozoraNode[] = []
-    let currentPageCharCount = 0
-    let pendingNode: AozoraNode | null = null
-
-    // 1ページあたりの目安文字数（フォントサイズと画面サイズから推定）
-    // paddingはfontSizeを基準に計算（remの代わりにem相当の計算）
-    const paddingVerticalPx = paddingVertical * fontSize * 2
-    const paddingHorizontalPx = paddingHorizontal * fontSize * 2
-
-    // より正確な計算: ナビゲーションバーの高さも考慮
-    const navHeight = 80 // ナビゲーションバーの高さ（px）
-    const availableHeight = windowSize.height - paddingVerticalPx - navHeight
-    const availableWidth = windowSize.width - paddingHorizontalPx
-
-    const charsPerPage = verticalMode
-      ? Math.floor(availableHeight / fontSize) * Math.floor(availableWidth / (fontSize * lineHeight))
-      : Math.floor(availableHeight / (fontSize * lineHeight)) * Math.floor(availableWidth / fontSize)
-
-    // 安全マージンを削除し、計算値を100%使用
-    const maxCharsPerPage = Math.max(100, charsPerPage)
-
-    console.log('Page calculation:', {
-      verticalMode,
-      windowSize,
-      fontSize,
-      lineHeight,
-      paddingVertical,
-      paddingHorizontal,
-      rubySize,
-      charsPerPage,
-      maxCharsPerPage,
-      totalNodes: document.nodes.length
-    })
-
-    for (let i = 0; i < document.nodes.length; i++) {
-      let node = pendingNode || document.nodes[i]
-      pendingNode = null
-
-      // ノードの文字数を計算
-      let nodeCharCount = 0
-      if (node.type === 'text') {
-        nodeCharCount = node.content.length
-      } else if (node.type === 'ruby') {
-        nodeCharCount = node.base.length
-      } else if (node.type === 'emphasis_dots') {
-        nodeCharCount = node.text.length
-      } else if (node.type === 'heading') {
-        nodeCharCount = node.content.length + 20
-      }
-
-      // 見出しは常に新しいページから始める（ページに何か入っている場合）
-      if (node.type === 'heading' && currentPageNodes.length > 0 && currentPageCharCount > 0) {
-        pages.push([...currentPageNodes])
-        currentPageNodes = []
-        currentPageCharCount = 0
-      }
-
-      // ページに収まるか確認
-      if (currentPageCharCount + nodeCharCount > maxCharsPerPage && currentPageNodes.length > 0) {
-        // テキストノードの場合、文の区切りで分割を試みる
-        if (node.type === 'text') {
-          const remainingChars = maxCharsPerPage - currentPageCharCount
-          const { beforeSplit, afterSplit } = splitTextNodeAtSentence(node, remainingChars)
-
-          if (beforeSplit) {
-            // 分割できた場合は、前半を現在のページに追加
-            currentPageNodes.push(beforeSplit)
-            // 現在のページを確定
-            pages.push([...currentPageNodes])
-            currentPageNodes = []
-            currentPageCharCount = 0
-
-            // 残りを次のページへ
-            if (afterSplit) {
-              pendingNode = afterSplit
-              i-- // 同じインデックスを再処理
-            }
-          } else {
-            // 分割できない場合は、現在のページを確定して、全体を次のページへ
-            if (currentPageNodes.length > 0) {
-              pages.push([...currentPageNodes])
-            }
-            currentPageNodes = [node]
-            currentPageCharCount = nodeCharCount
-          }
-        } else {
-          // テキスト以外のノードは分割しない
-          pages.push([...currentPageNodes])
-          currentPageNodes = [node]
-          currentPageCharCount = nodeCharCount
-        }
-      } else {
-        // 現在のページに追加
-        currentPageNodes.push(node)
-        currentPageCharCount += nodeCharCount
-      }
-    }
-
-    // 最後のページを追加
-    if (currentPageNodes.length > 0) {
-      pages.push(currentPageNodes)
-    }
-
-    // ページ数を更新
-    setTotalPages(Math.max(1, pages.length))
-
-    return pages
-  }, [document, verticalMode, fontSize, lineHeight, paddingVertical, paddingHorizontal, windowSize, rubySize])
-
-  // ページ再計算時に読書位置を維持
-  useEffect(() => {
-    if (prevTotalPagesRef.current > 0 && totalPages > 0 && prevTotalPagesRef.current !== totalPages) {
-      // 保存された進捗または現在の進捗から新しいページ位置を計算
-      const readingProgress = currentPageProgressRef.current || (currentPage / prevTotalPagesRef.current)
-      const newPage = Math.round(readingProgress * totalPages)
-      const validNewPage = Math.min(Math.max(0, newPage), totalPages - 1)
-
-      console.log('Recalculating page position:', {
-        oldPages: prevTotalPagesRef.current,
-        newPages: totalPages,
-        progress: readingProgress,
-        oldPage: currentPage,
-        newPage: validNewPage
-      })
-
-      setCurrentPage(validNewPage)
-    }
-    prevTotalPagesRef.current = totalPages
-  }, [totalPages]) // currentPageを依存から削除して無限ループを防ぐ
-
-  // 現在のページのノード
-  const currentPageNodes = useMemo(() => {
-    if (paginatedNodes.length === 0) return []
-    const validPage = Math.min(currentPage, paginatedNodes.length - 1)
-    return paginatedNodes[validPage] || []
-  }, [paginatedNodes, currentPage])
-
-  // ページナビゲーション
-  const goToNextPage = useCallback(() => {
-    if (currentPage < totalPages - 1) {
-      setCurrentPage(prev => prev + 1)
-      if (onScrollPositionChange) {
-        onScrollPositionChange(currentPage + 1)
-      }
-    }
-  }, [currentPage, totalPages, onScrollPositionChange])
-
-  const goToPreviousPage = useCallback(() => {
-    if (currentPage > 0) {
-      setCurrentPage(prev => prev - 1)
-      if (onScrollPositionChange) {
-        onScrollPositionChange(currentPage - 1)
-      }
-    }
-  }, [currentPage, onScrollPositionChange])
-
-  // キーボードナビゲーション
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case 'ArrowLeft':
-          if (verticalMode) {
-            goToNextPage() // 縦書きでは左が次
-          } else {
-            goToPreviousPage()
-          }
-          e.preventDefault()
-          break
-        case 'ArrowRight':
-          if (verticalMode) {
-            goToPreviousPage() // 縦書きでは右が前
-          } else {
-            goToNextPage()
-          }
-          e.preventDefault()
-          break
-        case 'ArrowUp':
-          if (!verticalMode) {
-            goToPreviousPage()
-            e.preventDefault()
-          }
-          break
-        case 'ArrowDown':
-          if (!verticalMode) {
-            goToNextPage()
-            e.preventDefault()
-          }
-          break
-        case ' ':
-          if (e.shiftKey) {
-            goToPreviousPage()
-          } else {
-            goToNextPage()
-          }
-          e.preventDefault()
-          break
-        case 'PageUp':
-          goToPreviousPage()
-          e.preventDefault()
-          break
-        case 'PageDown':
-          goToNextPage()
-          e.preventDefault()
-          break
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [verticalMode, goToNextPage, goToPreviousPage])
-
-  // 初期ページ位置を設定
-  useEffect(() => {
-    if (initialScrollPosition > 0) {
-      // initialScrollPositionをページ番号として扱う
-      const pageNumber = Math.floor(initialScrollPosition)
-      if (pageNumber >= 0 && pageNumber < totalPages) {
-        setCurrentPage(pageNumber)
-      }
-    }
-  }, [document, initialScrollPosition, totalPages])
-
-  // ノードをReact要素に変換
+  // ノードのレンダリング関数
   const renderNode = (node: AozoraNode, index: number): React.ReactElement | string => {
     switch (node.type) {
       case 'text':
-        // 改行を処理
-        const parts = node.content.split('\n')
-
-        const processTextPart = (text: string) => {
-          // 縦書きモードで連続するハイフンまたはダッシュを検出
-          if (verticalMode && /[-—－ー─]{2,}/.test(text)) {
-            // 連続するダッシュ記号を特別な処理
-            const segments = text.split(/([-—－ー─]{2,})/g)
+        const text = node.content
+        const parts = text.split('\n')
+        
+        const processTextPart = (part: string) => {
+          if (verticalMode) {
+            const segments = part.split(/([―]+)/g)
             return segments.map((segment, idx) => {
-              if (/^[-—－ー─]{2,}$/.test(segment)) {
-                // 連続するダッシュを縦線として表示
+              if (/^―+$/.test(segment)) {
                 return <span key={idx} className="dash-line">{segment}</span>
               }
               return segment
             })
           }
-          return text
+          return part
         }
 
         if (parts.length === 1) {
@@ -335,7 +63,6 @@ export const Reader: React.FC<ReaderProps> = ({
           </ruby>
         )
 
-      // 傍点（emphasis dots）
       case 'emphasis_dots':
         return (
           <span key={index} className="emphasis-dots">
@@ -343,7 +70,6 @@ export const Reader: React.FC<ReaderProps> = ({
           </span>
         )
 
-      // テキストサイズ変更
       case 'text_size':
         return (
           <span key={index} className={`text-size-${node.size}`}>
@@ -351,7 +77,6 @@ export const Reader: React.FC<ReaderProps> = ({
           </span>
         )
 
-      // 見出し
       case 'heading':
         const HeadingClass = `heading-${node.level}`
         if (node.level === 'large') {
@@ -362,7 +87,6 @@ export const Reader: React.FC<ReaderProps> = ({
           return <h4 key={index} className={HeadingClass}>{node.content}</h4>
         }
 
-      // ブロック字下げ
       case 'block_indent':
         return (
           <div
@@ -374,7 +98,6 @@ export const Reader: React.FC<ReaderProps> = ({
           </div>
         )
 
-      // 特殊文字説明（ツールチップとして表示）
       case 'special_char_note':
         return (
           <span
@@ -414,44 +137,16 @@ export const Reader: React.FC<ReaderProps> = ({
     )
   }
 
+  const readerClass = `reader reader-${theme} ${verticalMode ? 'reader-vertical' : 'reader-horizontal'} ruby-${rubySize}`
+  
+  const readerStyle: React.CSSProperties = {
+    fontSize: `${fontSize}px`,
+    lineHeight: lineHeight,
+  }
+
   return (
-    <div className="reader-pagination">
-      <Page
-        nodes={currentPageNodes}
-        verticalMode={verticalMode}
-        theme={theme}
-        fontSize={fontSize}
-        lineHeight={lineHeight}
-        paddingVertical={paddingVertical}
-        paddingHorizontal={paddingHorizontal}
-        rubySize={rubySize}
-        renderNode={renderNode}
-      />
-
-      {/* ページナビゲーション */}
-      <div className={`page-navigation ${isNavigationVisible ? 'nav-visible' : 'nav-hidden'}`}>
-        <button
-          onClick={goToNextPage}
-          disabled={currentPage === totalPages - 1}
-          className="page-nav-button page-nav-prev"
-          aria-label="次のページ"
-        >
-          {verticalMode ? '←' : '↑'}
-        </button>
-
-        <span className="page-indicator">
-          {currentPage + 1} / {totalPages}
-        </span>
-
-        <button
-          onClick={goToPreviousPage}
-          disabled={currentPage === 0}
-          className="page-nav-button page-nav-next"
-          aria-label="前のページ"
-        >
-          {verticalMode ? '→' : '↓'}
-        </button>
-      </div>
+    <div className={readerClass} style={readerStyle}>
+      {document.nodes.map((node, index) => renderNode(node, index))}
     </div>
   )
 }

@@ -3,17 +3,15 @@
   height: 100%;
   overflow: auto;
   box-sizing: border-box;
-  transition: background-color 0.3s, color 0.3s, padding 0.3s;
+  transition: background-color 0.3s, color 0.3s;
 }
 
 /* テーマ設定 */
 .reader-light {
-  background-color: #ffffff;
   color: #333333;
 }
 
 .reader-dark {
-  background-color: #1a1a1a;
   color: #e0e0e0;
 }
 
@@ -32,10 +30,9 @@
 .reader-vertical {
   writing-mode: vertical-rl;
   text-orientation: upright;
-  height: 100vh;
+  height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: var(--reader-padding);
   box-sizing: border-box;
 }
 
@@ -52,9 +49,14 @@
 
 /* ダッシュ記号の縦書き調整 */
 .reader-vertical .dash-line {
-  /* 縦書き時にダッシュを縦線として表示 */
-  text-orientation: sideways;
-  letter-spacing: -0.1em;
+  /* 縦書き時にダッシュを縦の中央線として表示 */
+  display: inline-block;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  transform: rotate(90deg);
+  margin: 0.5em 0.25em 0.75em 0;
+  line-height: 1;
+  letter-spacing: -0.15em;
 }
 
 /* ルビ設定 */

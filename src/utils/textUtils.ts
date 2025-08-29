@@ -5,11 +5,13 @@
 // 文の終わりを示す文字
 const SENTENCE_ENDINGS = ['。', '！', '？', '.', '!', '?'] as const
 // 閉じ括弧（文末に続く可能性がある）
-const CLOSING_BRACKETS = ['」', '』', '）', '"', ')'] as const
+const CLOSING_BRACKETS = ['」', '』', '）', '"', ')', '】', '］'] as const
 // 読点（文の区切り）
 const COMMAS = ['、', '，', ','] as const
 // その他の区切り文字
-const OTHER_PUNCTUATION = ['；', ';', '：', ':'] as const
+const OTHER_PUNCTUATION = ['；', ';', '：', ':', '…', '‥', '・・・', '...'] as const
+// 開き括弧
+const OPENING_BRACKETS = ['「', '『', '（', '"', '(', '【', '［'] as const
 
 /**
  * 指定位置が青空文庫の特殊指示（［＃...］）の内部かどうかを判定
@@ -271,4 +273,369 @@ export const splitIntoSentences = (text: string): string[] => {
  */
 export const countSentences = (text: string): number => {
   return splitIntoSentences(text).length
+}
+
+/**
+ * テキスト内の文字数を数える（ルビを除く）
+ * @param text カウント対象のテキスト
+ * @param includeSpaces スペースを含めるかどうか
+ * @returns 文字数
+ */
+export const countCharacters = (text: string, includeSpaces: boolean = true): number => {
+  if (!text) return 0
+  
+  // ルビ記法を除去
+  let cleanText = text
+  // 標準のルビ記法《...》を除去
+  cleanText = cleanText.replace(/《[^》]*》/g, '')
+  // パイプ記法の｜を除去
+  cleanText = cleanText.replace(/｜/g, '')
+  // 青空文庫の特殊指示［＃...］を除去
+  cleanText = cleanText.replace(/［＃[^］]*］/g, '')
+  
+  if (!includeSpaces) {
+    // スペース、タブ、改行を除去
+    cleanText = cleanText.replace(/[\s\u3000]/g, '')
+  }
+  
+  return cleanText.length
+}
+
+/**
+ * テキスト内の文字数を数える（ルビのみ）
+ * @param text カウント対象のテキスト
+ * @returns ルビ文字数
+ */
+export const countRubyCharacters = (text: string): number => {
+  if (!text) return 0
+  
+  let rubyCount = 0
+  
+  // 標準のルビ記法《...》の中身をカウント
+  const rubyMatches = text.match(/《([^》]*)》/g)
+  if (rubyMatches) {
+    rubyMatches.forEach(match => {
+      rubyCount += match.slice(1, -1).length  // 《》を除いた文字数
+    })
+  }
+  
+  return rubyCount
+}
+
+/**
+ * テキストの文字種別統計を取得
+ * @param text 分析対象のテキスト
+ * @returns 文字種別ごとの文字数
+ */
+export type CharacterStats = {
+  total: number           // 総文字数
+  withoutSpaces: number   // スペースを除いた文字数
+  hiragana: number        // ひらがな
+  katakana: number        // カタカナ
+  kanji: number          // 漢字
+  alphanumeric: number   // 英数字
+  punctuation: number    // 句読点
+  spaces: number         // スペース
+  ruby: number          // ルビ文字数
+  other: number         // その他
+}
+
+export const getCharacterStats = (text: string): CharacterStats => {
+  if (!text) {
+    return {
+      total: 0,
+      withoutSpaces: 0,
+      hiragana: 0,
+      katakana: 0,
+      kanji: 0,
+      alphanumeric: 0,
+      punctuation: 0,
+      spaces: 0,
+      ruby: 0,
+      other: 0
+    }
+  }
+  
+  // ルビを先にカウントして除去
+  const rubyCount = countRubyCharacters(text)
+  
+  // クリーンなテキストを取得（ルビと特殊指示を除去）
+  let cleanText = text
+  cleanText = cleanText.replace(/《[^》]*》/g, '')
+  cleanText = cleanText.replace(/｜/g, '')
+  cleanText = cleanText.replace(/［＃[^］]*］/g, '')
+  
+  const stats: CharacterStats = {
+    total: cleanText.length,
+    withoutSpaces: 0,
+    hiragana: 0,
+    katakana: 0,
+    kanji: 0,
+    alphanumeric: 0,
+    punctuation: 0,
+    spaces: 0,
+    ruby: rubyCount,
+    other: 0
+  }
+  
+  for (const char of cleanText) {
+    const code = char.charCodeAt(0)
+    
+    // スペース（半角・全角）
+    if (char === ' ' || char === '　' || char === '\t' || char === '\n' || char === '\r') {
+      stats.spaces++
+    }
+    // ひらがな
+    else if (code >= 0x3040 && code <= 0x309f) {
+      stats.hiragana++
+      stats.withoutSpaces++
+    }
+    // カタカナ
+    else if (code >= 0x30a0 && code <= 0x30ff) {
+      stats.katakana++
+      stats.withoutSpaces++
+    }
+    // 漢字
+    else if ((code >= 0x4e00 && code <= 0x9fff) || (code >= 0x3400 && code <= 0x4dbf)) {
+      stats.kanji++
+      stats.withoutSpaces++
+    }
+    // 英数字
+    else if ((code >= 0x0030 && code <= 0x0039) || // 数字
+             (code >= 0x0041 && code <= 0x005a) || // 大文字
+             (code >= 0x0061 && code <= 0x007a)) { // 小文字
+      stats.alphanumeric++
+      stats.withoutSpaces++
+    }
+    // 句読点
+    else if (SENTENCE_ENDINGS.includes(char as any) || 
+             COMMAS.includes(char as any) ||
+             OTHER_PUNCTUATION.includes(char as any)) {
+      stats.punctuation++
+      stats.withoutSpaces++
+    }
+    // その他
+    else {
+      stats.other++
+      stats.withoutSpaces++
+    }
+  }
+  
+  return stats
+}
+
+/**
+ * 日本語テキストを適切な単位でチャンク分割する
+ * @param text 分割対象のテキスト
+ * @param options チャンク分割のオプション
+ * @returns チャンクの配列
+ */
+export type ChunkOptions = {
+  // 段落境界を優先するか
+  preferParagraphBoundary?: boolean
+  // 会話文をまとめるか
+  keepDialogueTogether?: boolean
+  // チャンクの重複を許可するか（文脈保持用）
+  allowOverlap?: boolean
+  // 重複サイズ（文字数）
+  overlapSize?: number
+}
+
+export type TextChunk = {
+  content: string
+  startIndex: number
+  endIndex: number
+  sentenceCount: number
+  isDialogue: boolean
+  isParagraphStart: boolean
+  isParagraphEnd: boolean
+}
+
+/**
+ * テキストが会話文かどうかを判定
+ */
+const isDialogue = (text: string): boolean => {
+  const trimmed = text.trim()
+  if (!trimmed) return false
+  
+  // 開き括弧で始まり閉じ括弧で終わる
+  return OPENING_BRACKETS.some(open => {
+    if (!trimmed.startsWith(open)) return false
+    
+    // 対応する閉じ括弧を探す
+    const pairs: Record<string, string> = {
+      '「': '」',
+      '『': '』',
+      '（': '）',
+      '"': '"',
+      '(': ')',
+      '【': '】',
+      '［': '］'
+    }
+    
+    const expectedClose = pairs[open]
+    if (!expectedClose) return false
+    
+    return trimmed.endsWith(expectedClose) || 
+           trimmed.endsWith(expectedClose + '。') ||
+           trimmed.endsWith(expectedClose + '！') ||
+           trimmed.endsWith(expectedClose + '？')
+  })
+}
+
+/**
+ * 段落の境界を検出
+ */
+const findParagraphBoundaries = (text: string): number[] => {
+  const boundaries: number[] = [0]
+  
+  // 連続する改行を段落境界とする
+  const doubleNewlinePattern = /\n\s*\n/g
+  let match
+  while ((match = doubleNewlinePattern.exec(text)) !== null) {
+    boundaries.push(match.index + match[0].length)
+  }
+  
+  // 青空文庫の特殊指示による段落区切り
+  const specialBreakPattern = /［＃改ページ］|［＃改段］|［＃改行］/g
+  while ((match = specialBreakPattern.exec(text)) !== null) {
+    boundaries.push(match.index + match[0].length)
+  }
+  
+  boundaries.push(text.length)
+  return [...new Set(boundaries)].sort((a, b) => a - b)
+}
+
+/**
+ * 日本語テキストを文単位でチャンク分割
+ */
+export const chunkJapaneseText = (
+  text: string,
+  options: ChunkOptions = {}
+): TextChunk[] => {
+  const {
+    preferParagraphBoundary = true,
+    keepDialogueTogether = true,
+    allowOverlap = false,
+    overlapSize = 50
+  } = options
+  
+  const chunks: TextChunk[] = []
+  const sentences = splitIntoSentences(text)
+  
+  if (sentences.length === 0) return []
+  
+  const paragraphBoundaries = preferParagraphBoundary ? findParagraphBoundaries(text) : []
+  
+  // 文ごとにチャンクを作成
+  let currentIndex = 0
+  
+  for (let i = 0; i < sentences.length; i++) {
+    const sentence = sentences[i]
+    const sentenceStart = text.indexOf(sentence, currentIndex)
+    const sentenceEnd = sentenceStart + sentence.length
+    
+    // 段落境界のチェック
+    const isParagraphStart = paragraphBoundaries.some(
+      boundary => boundary <= sentenceStart && 
+      (i === 0 || text.indexOf(sentences[i - 1], 0) + sentences[i - 1].length < boundary)
+    )
+    
+    const isParagraphEnd = paragraphBoundaries.some(
+      boundary => boundary > sentenceStart && boundary <= sentenceEnd
+    ) || i === sentences.length - 1
+    
+    // 会話文のグループ化
+    if (keepDialogueTogether && i > 0) {
+      const prevChunk = chunks[chunks.length - 1]
+      const currentIsDialogue = isDialogue(sentence)
+      const prevIsDialogue = prevChunk && prevChunk.isDialogue
+      
+      // 同じタイプ（会話文同士または地の文同士）なら前のチャンクに追加
+      if (currentIsDialogue === prevIsDialogue && !isParagraphStart) {
+        prevChunk.content += sentence
+        prevChunk.endIndex = sentenceEnd
+        prevChunk.sentenceCount++
+        prevChunk.isParagraphEnd = isParagraphEnd
+        currentIndex = sentenceEnd
+        continue
+      }
+    }
+    
+    // 新しいチャンクを作成
+    const chunk: TextChunk = {
+      content: sentence,
+      startIndex: sentenceStart,
+      endIndex: sentenceEnd,
+      sentenceCount: 1,
+      isDialogue: isDialogue(sentence),
+      isParagraphStart,
+      isParagraphEnd
+    }
+    
+    chunks.push(chunk)
+    currentIndex = sentenceEnd
+  }
+  
+  // オーバーラップ処理
+  if (allowOverlap && overlapSize > 0 && chunks.length > 1) {
+    const overlappedChunks: TextChunk[] = []
+    
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = { ...chunks[i] }
+      
+      // 前のチャンクから文を追加
+      if (i > 0) {
+        const prevChunk = chunks[i - 1]
+        const prevSentences = splitIntoSentences(prevChunk.content)
+        let overlapContent = ''
+        let overlapLength = 0
+        
+        // 前のチャンクの最後の文から、overlapSizeに達するまで追加
+        for (let j = prevSentences.length - 1; j >= 0 && overlapLength < overlapSize; j--) {
+          overlapContent = prevSentences[j] + overlapContent
+          overlapLength += prevSentences[j].length
+        }
+        
+        if (overlapContent) {
+          chunk.content = overlapContent + chunk.content
+          chunk.startIndex = Math.max(0, chunk.startIndex - overlapLength)
+        }
+      }
+      
+      overlappedChunks.push(chunk)
+    }
+    
+    return overlappedChunks
+  }
+  
+  return chunks
+}
+
+/**
+ * チャンクを結合してテキストに戻す
+ */
+export const joinChunks = (chunks: TextChunk[]): string => {
+  if (chunks.length === 0) return ''
+  
+  // オーバーラップを考慮して結合
+  let result = chunks[0].content
+  let lastEndIndex = chunks[0].endIndex
+  
+  for (let i = 1; i < chunks.length; i++) {
+    const chunk = chunks[i]
+    
+    // オーバーラップ部分をスキップ
+    if (chunk.startIndex < lastEndIndex) {
+      const overlap = lastEndIndex - chunk.startIndex
+      const nonOverlapContent = chunk.content.substring(overlap)
+      result += nonOverlapContent
+    } else {
+      result += chunk.content
+    }
+    
+    lastEndIndex = chunk.endIndex
+  }
+  
+  return result
 }

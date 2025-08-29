@@ -1,7 +1,7 @@
 {
-  "name": "aozora-reader",
+  "name": "azr",
   "version": "1.0.0",
-  "description": "A web-based reader for Aozora Bunko formatted text files and EPUB files",
+  "description": "A web-based reader for Aozora Bunko formatted text files",
   "main": "index.js",
   "scripts": {
     "dev": "vite",

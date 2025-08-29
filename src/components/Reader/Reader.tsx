@@ -272,9 +272,9 @@ export const Reader: React.FC<ReaderProps> = ({
         {document.nodes.map((node, index) => renderNode(node, index))}
       </div>
       {/* 表示可能な列数と行数を表示するフローティングラベル */}
-      <div className="dimensions-label">
+      {/* <div className="dimensions-label">
         {visibleDimensions.cols} × {visibleDimensions.rows}
-      </div>
+      </div> */}
     </div>
   )
 }

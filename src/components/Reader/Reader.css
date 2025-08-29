@@ -330,6 +330,8 @@ ruby rt {
   text-align: center;
 }
 
+
+
 /* 表示可能な列数と行数のラベル */
 .dimensions-label {
   position: fixed;

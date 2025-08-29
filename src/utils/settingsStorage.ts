@@ -9,7 +9,8 @@ const DEFAULT_SETTINGS: ReaderSettings = {
   theme: 'light',
   paddingVertical: 2,
   paddingHorizontal: 2,
-  rubySize: 'normal'
+  rubySize: 'normal',
+  smoothScroll: true
 }
 
 export const settingsStorage = {

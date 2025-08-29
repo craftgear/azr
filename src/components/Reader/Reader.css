@@ -4,7 +4,6 @@
   overflow: auto;
   box-sizing: border-box;
   transition: background-color 0.3s, color 0.3s;
-  scroll-behavior: smooth;
 }
 
 /* テーマ設定 */
@@ -35,7 +34,6 @@
   overflow-x: auto;
   overflow-y: hidden;
   box-sizing: border-box;
-  scroll-behavior: smooth;
 }
 
 .reader-vertical .reader-content {

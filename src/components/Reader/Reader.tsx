@@ -9,6 +9,7 @@ type ReaderProps = {
   lineHeight?: number
   theme?: 'light' | 'dark'
   rubySize?: 'small' | 'normal' | 'large'
+  smoothScroll?: boolean
 }
 
 export const Reader: React.FC<ReaderProps> = ({
@@ -18,23 +19,26 @@ export const Reader: React.FC<ReaderProps> = ({
   lineHeight = 1.8,
   theme = 'light',
   rubySize = 'normal',
+  smoothScroll = true,
 }) => {
   const readerRef = useRef<HTMLDivElement>(null)
   const [visibleDimensions, setVisibleDimensions] = useState({ cols: 0, rows: 0 })
 
   useEffect(() => {
-    const smoothScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 300) => {
+    const animateScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 100) => {
       const start = element[direction === 'left' ? 'scrollLeft' : 'scrollTop']
       const startTime = performance.now()
 
-      const animateScroll = (currentTime: number) => {
+      const animate = (currentTime: number) => {
         const elapsed = currentTime - startTime
         const progress = Math.min(elapsed / duration, 1)
         
-        // easeInOutCubic easing function
-        const easeProgress = progress < 0.5
+        // Adjustable strength easing (0.35 = 35% easing strength)
+        const strength = 0.35
+        const cubicProgress = progress < 0.5
           ? 4 * progress * progress * progress
           : 1 - Math.pow(-2 * progress + 2, 3) / 2
+        const easeProgress = progress + (cubicProgress - progress) * strength
 
         const currentPosition = start + (distance * easeProgress)
         
@@ -45,11 +49,11 @@ export const Reader: React.FC<ReaderProps> = ({
         }
 
         if (progress < 1) {
-          requestAnimationFrame(animateScroll)
+          requestAnimationFrame(animate)
         }
       }
 
-      requestAnimationFrame(animateScroll)
+      requestAnimationFrame(animate)
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -80,10 +84,18 @@ export const Reader: React.FC<ReaderProps> = ({
         // 左右キーで横スクロール
         if (e.key === 'ArrowLeft') {
           e.preventDefault()
-          smoothScroll(readerRef.current, 'left', -scrollAmount)
+          if (smoothScroll) {
+            animateScroll(element, 'left', -scrollAmount)
+          } else {
+            element.scrollLeft -= scrollAmount
+          }
         } else if (e.key === 'ArrowRight') {
           e.preventDefault()
-          smoothScroll(readerRef.current, 'left', scrollAmount)
+          if (smoothScroll) {
+            animateScroll(element, 'left', scrollAmount)
+          } else {
+            element.scrollLeft += scrollAmount
+          }
         }
       } else {
         // 横書きモード: 行高で表示行数を計算
@@ -94,17 +106,25 @@ export const Reader: React.FC<ReaderProps> = ({
         // 上下キーで縦スクロール
         if (e.key === 'ArrowUp') {
           e.preventDefault()
-          smoothScroll(readerRef.current, 'top', -scrollAmount)
+          if (smoothScroll) {
+            animateScroll(element, 'top', -scrollAmount)
+          } else {
+            element.scrollTop -= scrollAmount
+          }
         } else if (e.key === 'ArrowDown') {
           e.preventDefault()
-          smoothScroll(readerRef.current, 'top', scrollAmount)
+          if (smoothScroll) {
+            animateScroll(element, 'top', scrollAmount)
+          } else {
+            element.scrollTop += scrollAmount
+          }
         }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [verticalMode, fontSize, lineHeight])
+  }, [verticalMode, fontSize, lineHeight, smoothScroll])
 
   // 表示可能な行数と列数を計算
   useEffect(() => {

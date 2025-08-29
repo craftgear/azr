@@ -267,6 +267,7 @@ const App: React.FC = () => {
             lineHeight={settings.lineHeight}
             theme={settings.theme}
             rubySize={settings.rubySize}
+            smoothScroll={settings.smoothScroll}
           />
         )}
       </main>

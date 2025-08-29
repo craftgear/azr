@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import type { ParsedAozoraDocument, AozoraNode } from '../../types/aozora'
 import './Reader.css'
 
@@ -19,6 +19,67 @@ export const Reader: React.FC<ReaderProps> = ({
   theme = 'light',
   rubySize = 'normal',
 }) => {
+  const readerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const smoothScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 300) => {
+      const start = element[direction === 'left' ? 'scrollLeft' : 'scrollTop']
+      const startTime = performance.now()
+
+      const animateScroll = (currentTime: number) => {
+        const elapsed = currentTime - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        
+        // easeInOutCubic easing function
+        const easeProgress = progress < 0.5
+          ? 4 * progress * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 3) / 2
+
+        const currentPosition = start + (distance * easeProgress)
+        
+        if (direction === 'left') {
+          element.scrollLeft = currentPosition
+        } else {
+          element.scrollTop = currentPosition
+        }
+
+        if (progress < 1) {
+          requestAnimationFrame(animateScroll)
+        }
+      }
+
+      requestAnimationFrame(animateScroll)
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!readerRef.current) return
+
+      const scrollAmount = 100 // スクロール量
+
+      if (verticalMode) {
+        // 縦書きモード: 左右キーで横スクロール
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault()
+          smoothScroll(readerRef.current, 'left', -scrollAmount)
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault()
+          smoothScroll(readerRef.current, 'left', scrollAmount)
+        }
+      } else {
+        // 横書きモード: 上下キーで縦スクロール
+        if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          smoothScroll(readerRef.current, 'top', -scrollAmount)
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          smoothScroll(readerRef.current, 'top', scrollAmount)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [verticalMode])
 
   // ノードのレンダリング関数
   const renderNode = (node: AozoraNode, index: number): React.ReactElement | string => {
@@ -145,7 +206,7 @@ export const Reader: React.FC<ReaderProps> = ({
   }
 
   return (
-    <div className={readerClass} style={readerStyle}>
+    <div ref={readerRef} className={readerClass} style={readerStyle}>
       {document.nodes.map((node, index) => renderNode(node, index))}
     </div>
   )

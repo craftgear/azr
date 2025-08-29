@@ -55,10 +55,29 @@ export const Reader: React.FC<ReaderProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!readerRef.current) return
 
-      const scrollAmount = 100 // スクロール量
+      const element = readerRef.current
+      const computedStyle = window.getComputedStyle(element)
+      
+      // 実際のフォントサイズとline-heightを取得
+      const actualFontSize = parseFloat(computedStyle.fontSize)
+      const actualLineHeight = parseFloat(computedStyle.lineHeight) || actualFontSize * lineHeight
+      
+      // パディングを考慮した実際の表示エリアサイズ
+      const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0
+      const paddingRight = parseFloat(computedStyle.paddingRight) || 0
+      const paddingTop = parseFloat(computedStyle.paddingTop) || 0
+      const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
+      
+      const visibleWidth = element.clientWidth - paddingLeft - paddingRight
+      const visibleHeight = element.clientHeight - paddingTop - paddingBottom
 
       if (verticalMode) {
-        // 縦書きモード: 左右キーで横スクロール
+        // 縦書きモード: 列幅で表示列数を計算
+        const colWidth = actualLineHeight
+        const cols = Math.floor(visibleWidth / colWidth)
+        const scrollAmount = cols * colWidth // 表示列数分スクロール
+        
+        // 左右キーで横スクロール
         if (e.key === 'ArrowLeft') {
           e.preventDefault()
           smoothScroll(readerRef.current, 'left', -scrollAmount)
@@ -67,7 +86,12 @@ export const Reader: React.FC<ReaderProps> = ({
           smoothScroll(readerRef.current, 'left', scrollAmount)
         }
       } else {
-        // 横書きモード: 上下キーで縦スクロール
+        // 横書きモード: 行高で表示行数を計算
+        const rowHeight = actualLineHeight
+        const rows = Math.floor(visibleHeight / rowHeight)
+        const scrollAmount = rows * rowHeight // 表示行数分スクロール
+        
+        // 上下キーで縦スクロール
         if (e.key === 'ArrowUp') {
           e.preventDefault()
           smoothScroll(readerRef.current, 'top', -scrollAmount)
@@ -80,7 +104,7 @@ export const Reader: React.FC<ReaderProps> = ({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [verticalMode])
+  }, [verticalMode, fontSize, lineHeight])
 
   // 表示可能な行数と列数を計算
   useEffect(() => {

@@ -25,7 +25,7 @@ export const Reader: React.FC<ReaderProps> = ({
   const [visibleDimensions, setVisibleDimensions] = useState({ cols: 0, rows: 0 })
 
   useEffect(() => {
-    const animateScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 100) => {
+    const animateScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 200) => {
       const start = element[direction === 'left' ? 'scrollLeft' : 'scrollTop']
       const startTime = performance.now()
 

@@ -9,6 +9,7 @@ export type ReaderSettings = {
   paddingVertical: number
   paddingHorizontal: number
   rubySize: 'small' | 'normal' | 'large'
+  smoothScroll: boolean
 }
 
 type SettingsProps = {
@@ -197,6 +198,32 @@ export const Settings: React.FC<SettingsProps> = ({
                   onChange={() => handleChange('rubySize', 'large')}
                 />
                 <span>大</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="settings-group">
+            <label className="settings-label">
+              スムーズスクロール
+            </label>
+            <div className="settings-radio-group">
+              <label className="settings-radio">
+                <input
+                  type="radio"
+                  name="smoothScroll"
+                  checked={settings.smoothScroll}
+                  onChange={() => handleChange('smoothScroll', true)}
+                />
+                <span>有効</span>
+              </label>
+              <label className="settings-radio">
+                <input
+                  type="radio"
+                  name="smoothScroll"
+                  checked={!settings.smoothScroll}
+                  onChange={() => handleChange('smoothScroll', false)}
+                />
+                <span>無効</span>
               </label>
             </div>
           </div>

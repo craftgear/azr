@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import type { ParsedAozoraDocument, AozoraNode } from '../../types/aozora'
 import './Reader.css'
 
@@ -9,6 +9,7 @@ type ReaderProps = {
   lineHeight?: number
   theme?: 'light' | 'dark'
   rubySize?: 'small' | 'normal' | 'large'
+  smoothScroll?: boolean
 }
 
 export const Reader: React.FC<ReaderProps> = ({
@@ -18,7 +19,172 @@ export const Reader: React.FC<ReaderProps> = ({
   lineHeight = 1.8,
   theme = 'light',
   rubySize = 'normal',
+  smoothScroll = true,
 }) => {
+  const readerRef = useRef<HTMLDivElement>(null)
+  const [visibleDimensions, setVisibleDimensions] = useState({ cols: 0, rows: 0 })
+
+  useEffect(() => {
+    const animateScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 200) => {
+      const start = element[direction === 'left' ? 'scrollLeft' : 'scrollTop']
+      const startTime = performance.now()
+
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        
+        // Adjustable strength easing (0.35 = 35% easing strength)
+        const strength = 0.35
+        const cubicProgress = progress < 0.5
+          ? 4 * progress * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 3) / 2
+        const easeProgress = progress + (cubicProgress - progress) * strength
+
+        const currentPosition = start + (distance * easeProgress)
+        
+        if (direction === 'left') {
+          element.scrollLeft = currentPosition
+        } else {
+          element.scrollTop = currentPosition
+        }
+
+        if (progress < 1) {
+          requestAnimationFrame(animate)
+        }
+      }
+
+      requestAnimationFrame(animate)
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!readerRef.current) return
+
+      const element = readerRef.current
+      const computedStyle = window.getComputedStyle(element)
+      
+      // 実際のフォントサイズとline-heightを取得
+      const actualFontSize = parseFloat(computedStyle.fontSize)
+      const actualLineHeight = parseFloat(computedStyle.lineHeight) || actualFontSize * lineHeight
+      
+      // パディングを考慮した実際の表示エリアサイズ
+      const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0
+      const paddingRight = parseFloat(computedStyle.paddingRight) || 0
+      const paddingTop = parseFloat(computedStyle.paddingTop) || 0
+      const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
+      
+      const visibleWidth = element.clientWidth - paddingLeft - paddingRight
+      const visibleHeight = element.clientHeight - paddingTop - paddingBottom
+
+      if (verticalMode) {
+        // 縦書きモード: 列幅で表示列数を計算
+        const colWidth = actualLineHeight
+        const cols = Math.floor(visibleWidth / colWidth)
+        const scrollAmount = cols * colWidth // 表示列数分スクロール
+        
+        // 左右キーで横スクロール
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault()
+          if (smoothScroll) {
+            animateScroll(element, 'left', -scrollAmount)
+          } else {
+            element.scrollLeft -= scrollAmount
+          }
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault()
+          if (smoothScroll) {
+            animateScroll(element, 'left', scrollAmount)
+          } else {
+            element.scrollLeft += scrollAmount
+          }
+        }
+      } else {
+        // 横書きモード: 行高で表示行数を計算
+        const rowHeight = actualLineHeight
+        const rows = Math.floor(visibleHeight / rowHeight)
+        const scrollAmount = rows * rowHeight // 表示行数分スクロール
+        
+        // 上下キーで縦スクロール
+        if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          if (smoothScroll) {
+            animateScroll(element, 'top', -scrollAmount)
+          } else {
+            element.scrollTop -= scrollAmount
+          }
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          if (smoothScroll) {
+            animateScroll(element, 'top', scrollAmount)
+          } else {
+            element.scrollTop += scrollAmount
+          }
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [verticalMode, fontSize, lineHeight, smoothScroll])
+
+  // 表示可能な行数と列数を計算
+  useEffect(() => {
+    const calculateVisibleDimensions = () => {
+      if (!readerRef.current) return
+
+      const element = readerRef.current
+      const computedStyle = window.getComputedStyle(element)
+      
+      // 実際のフォントサイズとline-heightを取得
+      const actualFontSize = parseFloat(computedStyle.fontSize)
+      const actualLineHeight = parseFloat(computedStyle.lineHeight) || actualFontSize * lineHeight
+      
+      // パディングを考慮した実際の表示エリアサイズ
+      const paddingTop = parseFloat(computedStyle.paddingTop) || 0
+      const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
+      const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0
+      const paddingRight = parseFloat(computedStyle.paddingRight) || 0
+      
+      const visibleHeight = element.clientHeight - paddingTop - paddingBottom
+      const visibleWidth = element.clientWidth - paddingLeft - paddingRight
+      
+      if (verticalMode) {
+        // 縦書きモード: 文字は縦に並ぶ
+        const charHeight = actualFontSize // 縦書き時、1文字の高さ = フォントサイズ
+        const colWidth = actualLineHeight // 縦書き時の列幅
+        
+        const rows = Math.floor(visibleHeight / charHeight)
+        const cols = Math.floor(visibleWidth / colWidth)
+        
+        setVisibleDimensions({ cols, rows })
+      } else {
+        // 横書きモード: 文字は横に並ぶ
+        const charWidth = actualFontSize * 0.5 // 平均的な文字幅（概算）
+        const rowHeight = actualLineHeight
+        
+        const cols = Math.floor(visibleWidth / charWidth)
+        const rows = Math.floor(visibleHeight / rowHeight)
+        
+        setVisibleDimensions({ cols, rows })
+      }
+    }
+
+    calculateVisibleDimensions()
+
+    // リサイズとスクロールイベントに対応
+    const handleResize = () => calculateVisibleDimensions()
+    window.addEventListener('resize', handleResize)
+    
+    // フォントサイズやモードが変更された時も再計算
+    const observer = new ResizeObserver(calculateVisibleDimensions)
+    if (readerRef.current) {
+      observer.observe(readerRef.current)
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      observer.disconnect()
+    }
+  }, [verticalMode, fontSize, lineHeight])
 
   // ノードのレンダリング関数
   const renderNode = (node: AozoraNode, index: number): React.ReactElement | string => {
@@ -145,8 +311,14 @@ export const Reader: React.FC<ReaderProps> = ({
   }
 
   return (
-    <div className={readerClass} style={readerStyle}>
-      {document.nodes.map((node, index) => renderNode(node, index))}
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <div ref={readerRef} className={readerClass} style={readerStyle}>
+        {document.nodes.map((node, index) => renderNode(node, index))}
+      </div>
+      {/* 表示可能な列数と行数を表示するフローティングラベル */}
+      {/* <div className="dimensions-label">
+        {visibleDimensions.cols} × {visibleDimensions.rows}
+      </div> */}
     </div>
   )
 }

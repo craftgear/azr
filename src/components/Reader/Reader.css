@@ -141,35 +141,16 @@ ruby rt {
   font-size: 1.2em;
 }
 
-/* スクロールバー設定 */
+/* スクロールバー設定 - 非表示 */
 .reader::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 0;
+  height: 0;
+  display: none;
 }
 
-.reader::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.reader::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-}
-
-.reader::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.5);
-}
-
-.reader-dark::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.reader-dark::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.reader-dark::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
+.reader {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
 }
 
 /* 傍点（emphasis dots） */
@@ -345,4 +326,29 @@ ruby rt {
   font-size: 14px;
   min-width: 80px;
   text-align: center;
+}
+
+
+
+/* 表示可能な列数と行数のラベル */
+.dimensions-label {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: monospace;
+  z-index: 1000;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.3s ease;
+}
+
+/* ダークモード時のラベル */
+.reader-dark ~ .dimensions-label {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }

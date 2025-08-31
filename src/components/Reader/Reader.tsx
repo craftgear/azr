@@ -386,6 +386,27 @@ export const Reader: React.FC<ReaderProps> = ({
     padding: `${paddingVertical}rem ${paddingHorizontal}rem`,
   }
 
+  // ページのセンタリングが必要かチェック
+  const shouldCenterPage = (page: Page, pageCapacity: number): boolean => {
+    // ページの容量使用率を計算
+    const capacityUsage = page.totalCharacters / pageCapacity
+    
+    // 見出しのみのページかチェック
+    const hasOnlyHeadings = page.lines.every(line => 
+      line.nodes.every(node => 
+        node.type === 'heading' || 
+        node.type === 'header' ||
+        node.type === 'text' && node.content.trim() === ''
+      )
+    )
+    
+    // センタリング条件：
+    // 1. 見出しのみのページ
+    // 2. 容量の50%未満しか使用していないページ
+    // 3. 1行しかないページ
+    return hasOnlyHeadings || capacityUsage < 0.5 || page.lines.length === 1
+  }
+
   // ページをレンダリング
   const renderPages = () => {
     if (pages.length === 0) {
@@ -400,15 +421,36 @@ export const Reader: React.FC<ReaderProps> = ({
     // 各ページをdiv.pageでラップ
     return pages.map((page, pageIndex) => {
       const pageNodes = getNodesFromPage(page)
+      // ページ容量を計算（最後に計算された容量を使用）
+      const pageCapacity = verticalMode ? 
+        visibleDimensions.cols * visibleDimensions.rows : 
+        visibleDimensions.cols * visibleDimensions.rows
+      const shouldCenter = shouldCenterPage(page, pageCapacity || 100)
+      
+      // センタリング用のクラスを追加
+      const pageClasses = [
+        'page',
+        pageIndex === currentPageIndex ? 'page-current' : '',
+        shouldCenter ? 'page-centered' : ''
+      ].filter(Boolean).join(' ')
+      
       return (
         <div 
           key={pageIndex} 
-          className={`page ${pageIndex === currentPageIndex ? 'page-current' : ''}`}
+          className={pageClasses}
           data-page={pageIndex + 1}
           style={pageStyle}
         >
-          {pageNodes.map((node, nodeIndex) => 
-            renderNode(node, `${pageIndex}-${nodeIndex}` as any)
+          {shouldCenter ? (
+            <div className="page-content-wrapper">
+              {pageNodes.map((node, nodeIndex) => 
+                renderNode(node, `${pageIndex}-${nodeIndex}` as any)
+              )}
+            </div>
+          ) : (
+            pageNodes.map((node, nodeIndex) => 
+              renderNode(node, `${pageIndex}-${nodeIndex}` as any)
+            )
           )}
         </div>
       )

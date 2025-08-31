@@ -279,6 +279,41 @@ ruby rt {
   display: block;
 }
 
+/* センタリングされたページ - 横書きモード */
+.reader-horizontal .page-centered {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+/* センタリングされたページ - 縦書きモード */
+.reader-vertical .page-centered {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row-reverse; /* 縦書きは右から左へ */
+}
+
+/* コンテンツラッパー（センタリング時の内部要素） */
+.page-content-wrapper {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* 縦書きモードでのコンテンツラッパー */
+.reader-vertical .page-content-wrapper {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  height: 100%;
+}
+
+/* 横書きモードでのコンテンツラッパー */
+.reader-horizontal .page-content-wrapper {
+  writing-mode: horizontal-tb;
+  width: 100%;
+}
+
 /* ページ情報表示 */
 .page-info {
   position: fixed;

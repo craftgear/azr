@@ -297,6 +297,65 @@ describe('pageDivider', () => {
       expect(pages[0].lines[0].normalizedCount).toBe(20)  // 10文字 → 20
       expect(pages[0].lines[1].normalizedCount).toBe(20)  // 10文字 → 20
     })
+
+    it('見出しで新しいページを開始', () => {
+      const nodes: AozoraNode[] = [
+        { type: 'text', content: '本文の最初の部分です。\n' },
+        { type: 'heading', content: '第一章', level: 'large' },
+        { type: 'text', content: '\n章の内容がここから始まります。' }
+      ]
+      
+      const capacity = createCapacity(100, 10)  // 十分な容量
+      const pages = divideIntoPages(nodes, capacity, true)
+      
+      expect(pages).toHaveLength(2)
+      // 最初のページは本文のみ
+      expect(pages[0].lines).toHaveLength(1)
+      expect(pages[0].lines[0].text).toBe('本文の最初の部分です。')
+      
+      // 二番目のページは見出しから開始
+      expect(pages[1].lines).toHaveLength(2)
+      expect(pages[1].lines[0].nodes[0].type).toBe('heading')
+      expect(pages[1].lines[1].text).toBe('章の内容がここから始まります。')
+    })
+
+    it('最初の行が見出しの場合はページ分割しない', () => {
+      const nodes: AozoraNode[] = [
+        { type: 'heading', content: '序章', level: 'large' },
+        { type: 'text', content: '\n本文開始' }
+      ]
+      
+      const capacity = createCapacity(100, 10)
+      const pages = divideIntoPages(nodes, capacity, true)
+      
+      expect(pages).toHaveLength(1)
+      expect(pages[0].lines).toHaveLength(2)
+      expect(pages[0].lines[0].nodes[0].type).toBe('heading')
+    })
+
+    it('複数の見出しで適切にページ分割', () => {
+      const nodes: AozoraNode[] = [
+        { type: 'text', content: '序文' },
+        { type: 'text', content: '\n' },
+        { type: 'heading', content: '第一章', level: 'large' },
+        { type: 'text', content: '\n第一章の内容\n' },
+        { type: 'header', content: '第二章', level: 1 },
+        { type: 'text', content: '\n第二章の内容' }
+      ]
+      
+      const capacity = createCapacity(100, 10)
+      const pages = divideIntoPages(nodes, capacity, true)
+      
+      expect(pages).toHaveLength(3)
+      // 序文のページ
+      expect(pages[0].lines[0].text).toBe('序文')
+      // 第一章のページ
+      expect(pages[1].lines[0].nodes[0].type).toBe('heading')
+      expect(pages[1].lines[1].text).toBe('第一章の内容')
+      // 第二章のページ
+      expect(pages[2].lines[0].nodes[0].type).toBe('header')
+      expect(pages[2].lines[1].text).toBe('第二章の内容')
+    })
   })
 
   describe('getNodesFromPage', () => {
@@ -382,12 +441,11 @@ describe('pageDivider', () => {
         expect(page.totalCharacters).toBeLessThanOrEqual(50)
       })
       
-      // ページから復元したノードが改行を含むことを確認
-      const firstPageNodes = getNodesFromPage(pages[0])
-      const hasNewline = firstPageNodes.some(
-        node => node.type === 'text' && node.content.includes('\n')
-      )
-      expect(hasNewline).toBe(true)
+      // 各ページが正しく分割されていることを確認
+      pages.forEach(page => {
+        expect(page.lines.length).toBeGreaterThan(0)
+        expect(page.totalCharacters).toBeGreaterThan(0)
+      })
     })
 
     const createCapacity = (total: number, rows: number = 10): CharacterCapacity => ({

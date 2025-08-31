@@ -179,10 +179,29 @@ export const divideIntoPages = (
   
   let nodeIndex = 0
   
-  for (const line of lines) {
-    // 現在のページに行を追加できるかチェック
-    if (currentPage.totalCharacters + line.normalizedCount <= pageCapacity) {
-      // 追加可能
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    
+    // 行が見出しタイプのノードを含むかチェック
+    const hasHeading = line.nodes.some(node => 
+      node.type === 'heading' || 
+      node.type === 'header'
+    )
+    
+    // 見出しの場合、新しいページを開始（最初のページでない限り）
+    if (hasHeading && currentPage.lines.length > 0) {
+      // 現在のページを保存
+      pages.push(currentPage)
+      
+      // 新しいページを開始
+      currentPage = {
+        lines: [line],
+        totalCharacters: line.normalizedCount,
+        startIndex: nodeIndex,
+        endIndex: nodeIndex + line.nodes.length - 1
+      }
+    } else if (currentPage.totalCharacters + line.normalizedCount <= pageCapacity) {
+      // 通常の行で、現在のページに収まる場合
       currentPage.lines.push(line)
       currentPage.totalCharacters += line.normalizedCount
       currentPage.endIndex = nodeIndex + line.nodes.length - 1

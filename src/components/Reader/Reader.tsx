@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useMemo } from 'react'
 import type { ParsedAozoraDocument, AozoraNode } from '../../types/aozora'
+import { calculateReaderCapacity } from '../../utils/readerCapacityCalculator'
+import { divideIntoPages, getNodesFromPage, type Page } from '../../utils/pageDivider'
 import './Reader.css'
 
 type ReaderProps = {
@@ -27,6 +29,8 @@ export const Reader: React.FC<ReaderProps> = ({
 }) => {
   const readerRef = useRef<HTMLDivElement>(null)
   const [visibleDimensions, setVisibleDimensions] = useState({ cols: 0, rows: 0 })
+  const [pages, setPages] = useState<Page[]>([])
+  const [currentPageIndex, setCurrentPageIndex] = useState(0)
 
   useEffect(() => {
     const animateScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 200) => {
@@ -85,20 +89,20 @@ export const Reader: React.FC<ReaderProps> = ({
         const cols = Math.floor(visibleWidth / colWidth)
         const scrollAmount = cols * colWidth // 表示列数分スクロール
 
-        // 左右キーで横スクロール
+        // 左右キーでページ移動（縦書きは右から左へ読む）
         if (e.key === 'ArrowLeft') {
           e.preventDefault()
-          if (smoothScroll) {
-            animateScroll(element, 'left', -scrollAmount)
-          } else {
-            element.scrollLeft -= scrollAmount
+          // 縦書きでは左キーで次のページへ
+          if (currentPageIndex < pages.length - 1) {
+            setCurrentPageIndex(currentPageIndex + 1)
+            element.scrollLeft = 0  // スクロール位置をリセット
           }
         } else if (e.key === 'ArrowRight') {
           e.preventDefault()
-          if (smoothScroll) {
-            animateScroll(element, 'left', scrollAmount)
-          } else {
-            element.scrollLeft += scrollAmount
+          // 縦書きでは右キーで前のページへ
+          if (currentPageIndex > 0) {
+            setCurrentPageIndex(currentPageIndex - 1)
+            element.scrollLeft = 0  // スクロール位置をリセット
           }
         }
       } else {
@@ -107,20 +111,20 @@ export const Reader: React.FC<ReaderProps> = ({
         const rows = Math.floor(visibleHeight / rowHeight)
         const scrollAmount = rows * rowHeight // 表示行数分スクロール
 
-        // 上下キーで縦スクロール
+        // 上下キーでページ移動
         if (e.key === 'ArrowUp') {
           e.preventDefault()
-          if (smoothScroll) {
-            animateScroll(element, 'top', -scrollAmount)
-          } else {
-            element.scrollTop -= scrollAmount
+          // 横書きでは上キーで前のページへ
+          if (currentPageIndex > 0) {
+            setCurrentPageIndex(currentPageIndex - 1)
+            element.scrollTop = 0  // スクロール位置をリセット
           }
         } else if (e.key === 'ArrowDown') {
           e.preventDefault()
-          if (smoothScroll) {
-            animateScroll(element, 'top', scrollAmount)
-          } else {
-            element.scrollTop += scrollAmount
+          // 横書きでは下キーで次のページへ
+          if (currentPageIndex < pages.length - 1) {
+            setCurrentPageIndex(currentPageIndex + 1)
+            element.scrollTop = 0  // スクロール位置をリセット
           }
         }
       }
@@ -128,7 +132,7 @@ export const Reader: React.FC<ReaderProps> = ({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [verticalMode, fontSize, lineHeight, smoothScroll])
+  }, [verticalMode, fontSize, lineHeight, smoothScroll, currentPageIndex, pages.length])
 
   // 表示可能な行数と列数を計算
   useEffect(() => {
@@ -189,6 +193,27 @@ export const Reader: React.FC<ReaderProps> = ({
       observer.disconnect()
     }
   }, [verticalMode, fontSize, lineHeight])
+
+  // ドキュメントと表示容量に基づいてページを計算
+  useEffect(() => {
+    if (!document || !readerRef.current) return
+
+    const capacity = calculateReaderCapacity(
+      readerRef.current,
+      verticalMode,
+      'japanese'
+    )
+
+    if (capacity.totalCharacters > 0) {
+      const calculatedPages = divideIntoPages(
+        document.nodes,
+        capacity,
+        verticalMode
+      )
+      setPages(calculatedPages)
+      setCurrentPageIndex(0)
+    }
+  }, [document, verticalMode, visibleDimensions, fontSize, lineHeight])
 
   // ノードのレンダリング関数
   const renderNode = (node: AozoraNode, index: number): React.ReactElement | string => {
@@ -315,15 +340,41 @@ export const Reader: React.FC<ReaderProps> = ({
     padding: `${paddingVertical}rem ${paddingHorizontal}rem`,
   }
 
+  // ページをレンダリング
+  const renderPages = () => {
+    if (pages.length === 0) {
+      // ページがまだ計算されていない場合は元のノードを表示
+      return document.nodes.map((node, index) => renderNode(node, index))
+    }
+
+    // 各ページをdiv.pageでラップ
+    return pages.map((page, pageIndex) => {
+      const pageNodes = getNodesFromPage(page)
+      return (
+        <div 
+          key={pageIndex} 
+          className={`page ${pageIndex === currentPageIndex ? 'page-current' : ''}`}
+          data-page={pageIndex + 1}
+        >
+          {pageNodes.map((node, nodeIndex) => 
+            renderNode(node, `${pageIndex}-${nodeIndex}` as any)
+          )}
+        </div>
+      )
+    })
+  }
+
   return (
     <>
       <div ref={readerRef} className={readerClass} style={readerStyle}>
-        {document.nodes.map((node, index) => renderNode(node, index))}
+        {renderPages()}
       </div>
-      {/* 表示可能な列数と行数を表示するフローティングラベル */}
-      {/* <div className="dimensions-label">
-        {visibleDimensions.cols} × {visibleDimensions.rows}
-      </div> */}
+      {/* ページ情報を表示 */}
+      {pages.length > 0 && (
+        <div className="page-info">
+          {currentPageIndex + 1} / {pages.length}
+        </div>
+      )}
     </>
   )
 }

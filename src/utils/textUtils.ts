@@ -186,27 +186,7 @@ export const splitTextAtBoundary = (
   // 1. 文の終わりを探す
   splitIndex = findLastSentenceEnd(text, maxLength - 1)
 
-  // 2. 文の終わりが見つからない場合は、読点で区切る
-  if (splitIndex === -1) {
-    for (let i = Math.min(maxLength - 1, text.length - 1); i >= 0; i--) {
-      if (COMMAS.includes(text[i] as any) && !isInsideSpecialInstruction(text, i)) {
-        splitIndex = i + 1
-        break
-      }
-    }
-  }
-
-  // 3. それでも見つからない場合は、その他の句読点で区切る
-  if (splitIndex === -1) {
-    for (let i = Math.min(maxLength - 1, text.length - 1); i >= 0; i--) {
-      if (OTHER_PUNCTUATION.includes(text[i] as any) && !isInsideSpecialInstruction(text, i)) {
-        splitIndex = i + 1
-        break
-      }
-    }
-  }
-
-  // 4. それでも見つからない場合は、改行で区切る
+  // 2. 文の終わりが見つからない場合は、改行で区切る
   if (splitIndex === -1) {
     for (let i = Math.min(maxLength - 1, text.length - 1); i >= 0; i--) {
       if (text[i] === '\n') {
@@ -216,7 +196,7 @@ export const splitTextAtBoundary = (
     }
   }
 
-  // 5. それでも見つからない場合は、スペースで区切る
+  // 3. それでも見つからない場合は、スペースで区切る
   if (splitIndex === -1) {
     for (let i = Math.min(maxLength - 1, text.length - 1); i >= 0; i--) {
       if (text[i] === ' ' || text[i] === '　') {
@@ -226,8 +206,23 @@ export const splitTextAtBoundary = (
     }
   }
 
-  // 6. 最終手段：maxLengthで強制的に区切る
+  // 4. 適切な分割点が見つからない場合
   if (splitIndex === -1) {
+    // 読点があるかチェック
+    let hasComma = false
+    for (let i = 0; i < text.length; i++) {
+      if (COMMAS.includes(text[i] as any)) {
+        hasComma = true
+        break
+      }
+    }
+    
+    // 読点がある場合は分割しない
+    if (hasComma) {
+      return { before: text, after: '' }
+    }
+    
+    // 読点がない場合はmaxLengthで強制分割
     splitIndex = maxLength
   }
 

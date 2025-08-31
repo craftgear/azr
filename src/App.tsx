@@ -231,12 +231,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main 
-        className="app-main"
-        style={{
-          padding: document ? `${settings.paddingVertical}rem ${settings.paddingHorizontal}rem` : undefined
-        }}
-      >
+      <main className="app-main">
         {isLoading && (
           <div className="loading-overlay">
             <p>読み込み中...</p>
@@ -268,6 +263,8 @@ const App: React.FC = () => {
             theme={settings.theme}
             rubySize={settings.rubySize}
             smoothScroll={settings.smoothScroll}
+            paddingVertical={settings.paddingVertical}
+            paddingHorizontal={settings.paddingHorizontal}
           />
         )}
       </main>

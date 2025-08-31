@@ -149,8 +149,13 @@ ruby rt {
 }
 
 .reader {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  width: 100%;
+  height: 100%;
+  position: relative;
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
 }
 
 /* 傍点（emphasis dots） */
@@ -348,7 +353,7 @@ ruby rt {
 }
 
 /* ダークモード時のラベル */
-.reader-dark ~ .dimensions-label {
+.reader-dark~.dimensions-label {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.3);
 }

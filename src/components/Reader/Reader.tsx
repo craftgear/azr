@@ -198,11 +198,53 @@ export const Reader: React.FC<ReaderProps> = ({
   useEffect(() => {
     if (!document || !readerRef.current) return
 
-    const capacity = calculateReaderCapacity(
-      readerRef.current,
-      verticalMode,
-      'japanese'
-    )
+    // パディングを考慮した容量計算
+    // readerの全体サイズからページのパディングを引いた実際の表示領域を計算
+    const readerElement = readerRef.current
+    const computedStyle = window.getComputedStyle(readerElement)
+    
+    // 実際のフォントサイズとline-heightを取得
+    const actualFontSize = parseFloat(computedStyle.fontSize) || fontSize
+    const actualLineHeight = parseFloat(computedStyle.lineHeight) || actualFontSize * lineHeight
+    
+    // パディングをピクセルに変換（1rem = 16px として計算）
+    const remToPixel = parseFloat(computedStyle.fontSize) || 16
+    const paddingTopPx = paddingVertical * remToPixel
+    const paddingBottomPx = paddingVertical * remToPixel
+    const paddingLeftPx = paddingHorizontal * remToPixel
+    const paddingRightPx = paddingHorizontal * remToPixel
+    
+    // 実際の表示可能エリア
+    const visibleWidth = readerElement.clientWidth - paddingLeftPx - paddingRightPx
+    const visibleHeight = readerElement.clientHeight - paddingTopPx - paddingBottomPx
+    
+    // カスタム容量を計算
+    let capacity
+    if (verticalMode) {
+      const charHeight = actualFontSize
+      const colWidth = actualLineHeight
+      const rows = Math.floor(visibleHeight / charHeight)
+      const cols = Math.floor(visibleWidth / colWidth)
+      capacity = {
+        totalCharacters: rows * cols,
+        rows,
+        cols,
+        charactersPerRow: cols,
+        charactersPerColumn: rows
+      }
+    } else {
+      const charWidth = actualFontSize * 1.0  // 日本語文字の幅
+      const rowHeight = actualLineHeight
+      const charactersPerRow = Math.floor(visibleWidth / charWidth)
+      const rows = Math.floor(visibleHeight / rowHeight)
+      capacity = {
+        totalCharacters: charactersPerRow * rows,
+        rows,
+        cols: charactersPerRow,
+        charactersPerRow,
+        charactersPerColumn: rows
+      }
+    }
 
     if (capacity.totalCharacters > 0) {
       const calculatedPages = divideIntoPages(
@@ -213,7 +255,7 @@ export const Reader: React.FC<ReaderProps> = ({
       setPages(calculatedPages)
       setCurrentPageIndex(0)
     }
-  }, [document, verticalMode, visibleDimensions, fontSize, lineHeight])
+  }, [document, verticalMode, visibleDimensions, fontSize, lineHeight, paddingVertical, paddingHorizontal])
 
   // ノードのレンダリング関数
   const renderNode = (node: AozoraNode, index: number): React.ReactElement | string => {
@@ -337,14 +379,22 @@ export const Reader: React.FC<ReaderProps> = ({
   const readerStyle: React.CSSProperties = {
     fontSize: `${fontSize}px`,
     lineHeight: lineHeight,
+  }
+
+  // 各ページのスタイル（パディングを含む）
+  const pageStyle: React.CSSProperties = {
     padding: `${paddingVertical}rem ${paddingHorizontal}rem`,
   }
 
   // ページをレンダリング
   const renderPages = () => {
     if (pages.length === 0) {
-      // ページがまだ計算されていない場合は元のノードを表示
-      return document.nodes.map((node, index) => renderNode(node, index))
+      // ページがまだ計算されていない場合は元のノードを表示（パディング付き）
+      return (
+        <div className="page page-current" style={pageStyle}>
+          {document.nodes.map((node, index) => renderNode(node, index))}
+        </div>
+      )
     }
 
     // 各ページをdiv.pageでラップ
@@ -355,6 +405,7 @@ export const Reader: React.FC<ReaderProps> = ({
           key={pageIndex} 
           className={`page ${pageIndex === currentPageIndex ? 'page-current' : ''}`}
           data-page={pageIndex + 1}
+          style={pageStyle}
         >
           {pageNodes.map((node, nodeIndex) => 
             renderNode(node, `${pageIndex}-${nodeIndex}` as any)

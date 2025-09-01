@@ -54,9 +54,9 @@
   writing-mode: horizontal-tb;
   text-orientation: mixed;
   transform: rotate(90deg);
-  margin: 0.5em 0.25em 0.75em 0;
+  margin: 0.5em 0 0.75em 0.25em;
   line-height: 1;
-  letter-spacing: -0.15em;
+  letter-spacing: -0.18em;
 }
 
 /* ルビ設定 */
@@ -67,6 +67,7 @@ ruby {
 ruby rt {
   font-size: 0.5em;
   font-weight: normal;
+  margin-left: -0.4em;
 }
 
 /* ルビサイズ設定 */
@@ -298,7 +299,8 @@ ruby rt {
 
 /* 縦書きモードのページ */
 .reader-vertical .page {
-  flex-direction: row-reverse; /* 縦書きは右から左へ */
+  flex-direction: row-reverse;
+  /* 縦書きは右から左へ */
 }
 
 /* 縦書きモードのページ - 次のページ準備位置 */
@@ -354,7 +356,7 @@ ruby rt {
 }
 
 /* ダークモード時のページ情報 */
-.reader-dark ~ .page-info {
+.reader-dark~.page-info {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.3);
 }

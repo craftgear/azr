@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 import './FileUpload.css'
 
 type FileUploadProps = {
@@ -13,6 +13,66 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   disabled = false
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+  useEffect(() => {
+    // Tauriのファイルドロップイベントをリッスン
+    const handleTauriFileDrop = async (event: any) => {
+      console.log('Tauri file drop event:', event)
+      
+      if (event.payload && event.payload.paths && event.payload.paths.length > 0) {
+        const filePath = event.payload.paths[0]
+        
+        // Tauriの場合、ファイルパスから内容を読み込む必要がある
+        try {
+          if (window.__TAURI__?.fs) {
+            // Tauri FSを使用してファイルを読み込む
+            const contents = await window.__TAURI__.fs.readTextFile(filePath)
+            const fileName = filePath.split('/').pop() || filePath.split('\\').pop() || 'file.txt'
+            const blob = new Blob([contents], { type: 'text/plain' })
+            const file = new File([blob], fileName, { type: 'text/plain' })
+            onFileSelect(file)
+            setIsDragging(false)
+          }
+        } catch (error) {
+          console.error('Failed to read dropped file:', error)
+          // エラーハンドリング
+          setIsDragging(false)
+        }
+      }
+    }
+
+    // Tauri環境かチェック
+    if (window.__TAURI__) {
+      const { listen } = window.__TAURI__.event
+      let unlisten: any
+      
+      listen('tauri://file-drop', handleTauriFileDrop).then((unlistenFn: any) => {
+        unlisten = unlistenFn
+      })
+      
+      // ドラッグオーバーイベントもリッスン
+      let unlistenHover: any
+      listen('tauri://file-drop-hover', () => {
+        setIsDragging(true)
+      }).then((fn: any) => {
+        unlistenHover = fn
+      })
+      
+      let unlistenCancelled: any
+      listen('tauri://file-drop-cancelled', () => {
+        setIsDragging(false)
+      }).then((fn: any) => {
+        unlistenCancelled = fn
+      })
+      
+      return () => {
+        if (unlisten) unlisten()
+        if (unlistenHover) unlistenHover()
+        if (unlistenCancelled) unlistenCancelled()
+      }
+    }
+  }, [onFileSelect])
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -24,16 +84,28 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     event.stopPropagation()
+    setIsDragging(false)
     
-    const file = event.dataTransfer.files[0]
-    if (file && file.type === 'text/plain') {
-      onFileSelect(file)
+    // ブラウザ環境でのファイルドロップ処理
+    if (!window.__TAURI__) {
+      const file = event.dataTransfer.files[0]
+      if (file && file.type === 'text/plain') {
+        onFileSelect(file)
+      }
     }
+    // Tauri環境では上記のイベントリスナーが処理する
   }
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     event.stopPropagation()
+    setIsDragging(true)
+  }
+  
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setIsDragging(false)
   }
 
   const handleClick = () => {
@@ -43,9 +115,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   return (
     <div className="file-upload-container">
       <div
-        className={`file-upload-dropzone ${disabled ? 'disabled' : ''}`}
+        className={`file-upload-dropzone ${disabled ? 'disabled' : ''} ${isDragging ? 'dragging' : ''}`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
         onClick={handleClick}
         role="button"
         tabIndex={0}

@@ -129,10 +129,6 @@ describe('Library', () => {
   it('should delete a book when delete button is clicked', async () => {
     vi.mocked(libraryStorage.getAllBooks).mockResolvedValue(mockBooks)
     vi.mocked(libraryStorage.deleteBook).mockResolvedValue(undefined)
-    
-    // confirmをモック
-    const originalConfirm = window.confirm
-    window.confirm = vi.fn().mockReturnValue(true)
 
     render(<Library onBookSelect={mockOnBookSelect} onClose={mockOnClose} />)
 
@@ -143,11 +139,19 @@ describe('Library', () => {
     const deleteButtons = screen.getAllByText('🗑')
     fireEvent.click(deleteButtons[0])
 
-    expect(window.confirm).toHaveBeenCalledWith('この本を削除してもよろしいですか？')
-    expect(libraryStorage.deleteBook).toHaveBeenCalledWith('book1')
+    // モーダルが表示されることを確認
+    await waitFor(() => {
+      expect(screen.getByText('削除の確認')).toBeDefined()
+      expect(screen.getByText('「吾輩は猫である」')).toBeDefined()
+    })
 
-    // restore confirm
-    window.confirm = originalConfirm
+    // 削除ボタンをクリック
+    const confirmButton = screen.getByRole('button', { name: /削除する/ })
+    fireEvent.click(confirmButton)
+
+    await waitFor(() => {
+      expect(libraryStorage.deleteBook).toHaveBeenCalledWith('book1')
+    })
   })
 
   it('should close library when close button is clicked', () => {

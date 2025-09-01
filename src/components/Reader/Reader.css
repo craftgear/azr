@@ -267,13 +267,18 @@ ruby rt {
 
 /* ページスタイル */
 .page {
-  display: none;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   justify-content: center;
   align-items: center;
+  display: flex;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+  pointer-events: none;
 }
 
 /* 横書きモードのページ */
@@ -281,18 +286,36 @@ ruby rt {
   flex-direction: column;
 }
 
+/* 縦書きモードのページ - 次のページ準備位置 */
+.reader-horizontal .page-next {
+  transform: translateY(100%);
+}
+
+/* 縦書きモードのページ - 前のページ準備位置 */
+.reader-horizontal .page-prev {
+  transform: translateY(-100%);
+}
+
 /* 縦書きモードのページ */
 .reader-vertical .page {
   flex-direction: row-reverse; /* 縦書きは右から左へ */
 }
 
-/* 現在のページのみ表示 */
-.reader-horizontal .page-current {
-  display: flex;
+/* 縦書きモードのページ - 次のページ準備位置 */
+.reader-vertical .page-next {
+  transform: translateX(-100%);
 }
 
-.reader-vertical .page-current {
-  display: flex;
+/* 縦書きモードのページ - 前のページ準備位置 */
+.reader-vertical .page-prev {
+  transform: translateX(100%);
+}
+
+/* 現在のページのみ表示 */
+.page-current {
+  opacity: 1;
+  transform: translate(0, 0);
+  pointer-events: auto;
 }
 
 /* コンテンツラッパー（センタリング時の内部要素） */

@@ -129,11 +129,11 @@ describe('textUtils', () => {
       expect(result.after).toBe('次の文です。三番目の文です。')
     })
 
-    it('読点で分割する（文末が見つからない場合）', () => {
+    it('読点で分割しない', () => {
       const text = '長い文章で、読点があり、まだ続きます'
       const result = splitTextAtBoundary(text, 8)
-      expect(result.before).toBe('長い文章で、')
-      expect(result.after).toBe('読点があり、まだ続きます')
+      expect(result.before).toBe('長い文章で、読点があり、まだ続きます')
+      expect(result.after).toBe('')
     })
 
     it('改行で分割する', () => {

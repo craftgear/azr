@@ -58,8 +58,8 @@ describe('Reader', () => {
       metadata: {}
     }
     const { container } = render(<Reader document={doc} fontSize={20} />)
-    const page = container.querySelector('.page') as HTMLElement
-    expect(page?.style.fontSize).toBe('20px')
+    const reader = container.querySelector('.reader') as HTMLElement
+    expect(reader?.style.fontSize).toBe('20px')
   })
 
   it('should render multiple nodes', () => {
@@ -72,7 +72,7 @@ describe('Reader', () => {
       metadata: {}
     }
     const { container } = render(<Reader document={doc} />)
-    const content = container.querySelector('.page-content')
+    const content = container.querySelector('.reader')
     expect(content?.textContent).toContain('吾輩は')
     expect(container.querySelector('ruby')).toBeDefined()
     expect(content?.textContent).toContain('である。')

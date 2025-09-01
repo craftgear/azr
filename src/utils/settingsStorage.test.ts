@@ -19,7 +19,8 @@ describe('settingsStorage', () => {
         theme: 'light',
         paddingVertical: 2,
         paddingHorizontal: 2,
-        rubySize: 'normal'
+        rubySize: 'normal',
+        smoothScroll: true
       })
     })
 
@@ -31,7 +32,8 @@ describe('settingsStorage', () => {
         theme: 'dark',
         paddingVertical: 3,
         paddingHorizontal: 3,
-        rubySize: 'large'
+        rubySize: 'large',
+        smoothScroll: false
       }
       
       localStorage.setItem('readerSettings', JSON.stringify(savedSettings))
@@ -52,7 +54,8 @@ describe('settingsStorage', () => {
         theme: 'light',
         paddingVertical: 2,
         paddingHorizontal: 2,
-        rubySize: 'normal'
+        rubySize: 'normal',
+        smoothScroll: true
       })
     })
 
@@ -77,7 +80,8 @@ describe('settingsStorage', () => {
         theme: 'dark',
         paddingVertical: 3,
         paddingHorizontal: 3,
-        rubySize: 'large'
+        rubySize: 'large',
+        smoothScroll: true
       })
     })
 
@@ -98,7 +102,8 @@ describe('settingsStorage', () => {
         theme: 'dark',
         paddingVertical: 2,
         paddingHorizontal: 2,
-        rubySize: 'normal'
+        rubySize: 'normal',
+        smoothScroll: true
       })
     })
   })
@@ -112,7 +117,8 @@ describe('settingsStorage', () => {
         theme: 'dark',
         paddingVertical: 1.5,
         paddingHorizontal: 1.5,
-        rubySize: 'small'
+        rubySize: 'small',
+        smoothScroll: true
       }
       
       settingsStorage.saveSettings(settings)
@@ -130,7 +136,8 @@ describe('settingsStorage', () => {
         theme: 'light',
         paddingVertical: 2,
         paddingHorizontal: 2,
-        rubySize: 'normal'
+        rubySize: 'normal',
+        smoothScroll: true
       }
       
       // localStorage.setItemをモック化してエラーを投げる

@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useMemo } from 'react'
 import type { ParsedAozoraDocument, AozoraNode } from '../../types/aozora'
+import { calculateReaderCapacity } from '../../utils/readerCapacityCalculator'
+import { divideIntoPages, getNodesFromPage, type Page } from '../../utils/pageDivider'
 import './Reader.css'
 
 type ReaderProps = {
@@ -27,6 +29,8 @@ export const Reader: React.FC<ReaderProps> = ({
 }) => {
   const readerRef = useRef<HTMLDivElement>(null)
   const [visibleDimensions, setVisibleDimensions] = useState({ cols: 0, rows: 0 })
+  const [pages, setPages] = useState<Page[]>([])
+  const [currentPageIndex, setCurrentPageIndex] = useState(0)
 
   useEffect(() => {
     const animateScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 200) => {
@@ -85,20 +89,20 @@ export const Reader: React.FC<ReaderProps> = ({
         const cols = Math.floor(visibleWidth / colWidth)
         const scrollAmount = cols * colWidth // 表示列数分スクロール
 
-        // 左右キーで横スクロール
+        // 左右キーでページ移動（縦書きは右から左へ読む）
         if (e.key === 'ArrowLeft') {
           e.preventDefault()
-          if (smoothScroll) {
-            animateScroll(element, 'left', -scrollAmount)
-          } else {
-            element.scrollLeft -= scrollAmount
+          // 縦書きでは左キーで次のページへ
+          if (currentPageIndex < pages.length - 1) {
+            setCurrentPageIndex(currentPageIndex + 1)
+            element.scrollLeft = 0  // スクロール位置をリセット
           }
         } else if (e.key === 'ArrowRight') {
           e.preventDefault()
-          if (smoothScroll) {
-            animateScroll(element, 'left', scrollAmount)
-          } else {
-            element.scrollLeft += scrollAmount
+          // 縦書きでは右キーで前のページへ
+          if (currentPageIndex > 0) {
+            setCurrentPageIndex(currentPageIndex - 1)
+            element.scrollLeft = 0  // スクロール位置をリセット
           }
         }
       } else {
@@ -107,20 +111,20 @@ export const Reader: React.FC<ReaderProps> = ({
         const rows = Math.floor(visibleHeight / rowHeight)
         const scrollAmount = rows * rowHeight // 表示行数分スクロール
 
-        // 上下キーで縦スクロール
+        // 上下キーでページ移動
         if (e.key === 'ArrowUp') {
           e.preventDefault()
-          if (smoothScroll) {
-            animateScroll(element, 'top', -scrollAmount)
-          } else {
-            element.scrollTop -= scrollAmount
+          // 横書きでは上キーで前のページへ
+          if (currentPageIndex > 0) {
+            setCurrentPageIndex(currentPageIndex - 1)
+            element.scrollTop = 0  // スクロール位置をリセット
           }
         } else if (e.key === 'ArrowDown') {
           e.preventDefault()
-          if (smoothScroll) {
-            animateScroll(element, 'top', scrollAmount)
-          } else {
-            element.scrollTop += scrollAmount
+          // 横書きでは下キーで次のページへ
+          if (currentPageIndex < pages.length - 1) {
+            setCurrentPageIndex(currentPageIndex + 1)
+            element.scrollTop = 0  // スクロール位置をリセット
           }
         }
       }
@@ -128,7 +132,7 @@ export const Reader: React.FC<ReaderProps> = ({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [verticalMode, fontSize, lineHeight, smoothScroll])
+  }, [verticalMode, fontSize, lineHeight, smoothScroll, currentPageIndex, pages.length])
 
   // 表示可能な行数と列数を計算
   useEffect(() => {
@@ -143,13 +147,15 @@ export const Reader: React.FC<ReaderProps> = ({
       const actualLineHeight = parseFloat(computedStyle.lineHeight) || actualFontSize * lineHeight
 
       // パディングを考慮した実際の表示エリアサイズ
-      const paddingTop = parseFloat(computedStyle.paddingTop) || 0
-      const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
-      const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0
-      const paddingRight = parseFloat(computedStyle.paddingRight) || 0
+      // パディングはページレベルで適用されるので、propの値を使用
+      const remToPixel = actualFontSize || 16
+      const paddingTopPx = paddingVertical * remToPixel
+      const paddingBottomPx = paddingVertical * remToPixel
+      const paddingLeftPx = paddingHorizontal * remToPixel
+      const paddingRightPx = paddingHorizontal * remToPixel
 
-      const visibleHeight = element.clientHeight - paddingTop - paddingBottom
-      const visibleWidth = element.clientWidth - paddingLeft - paddingRight
+      const visibleHeight = element.clientHeight - paddingTopPx - paddingBottomPx
+      const visibleWidth = element.clientWidth - paddingLeftPx - paddingRightPx
 
       if (verticalMode) {
         // 縦書きモード: 文字は縦に並ぶ
@@ -188,7 +194,70 @@ export const Reader: React.FC<ReaderProps> = ({
       window.removeEventListener('resize', handleResize)
       observer.disconnect()
     }
-  }, [verticalMode, fontSize, lineHeight])
+  }, [verticalMode, fontSize, lineHeight, paddingVertical, paddingHorizontal])
+
+  // ドキュメントと表示容量に基づいてページを計算
+  useEffect(() => {
+    if (!document || !readerRef.current) return
+
+    // パディングを考慮した容量計算
+    // readerの全体サイズからページのパディングを引いた実際の表示領域を計算
+    const readerElement = readerRef.current
+    const computedStyle = window.getComputedStyle(readerElement)
+    
+    // 実際のフォントサイズとline-heightを取得
+    const actualFontSize = parseFloat(computedStyle.fontSize) || fontSize
+    const actualLineHeight = parseFloat(computedStyle.lineHeight) || actualFontSize * lineHeight
+    
+    // パディングをピクセルに変換（1rem = 16px として計算）
+    const remToPixel = parseFloat(computedStyle.fontSize) || 16
+    const paddingTopPx = paddingVertical * remToPixel
+    const paddingBottomPx = paddingVertical * remToPixel
+    const paddingLeftPx = paddingHorizontal * remToPixel
+    const paddingRightPx = paddingHorizontal * remToPixel
+    
+    // 実際の表示可能エリア
+    const visibleWidth = readerElement.clientWidth - paddingLeftPx - paddingRightPx
+    const visibleHeight = readerElement.clientHeight - paddingTopPx - paddingBottomPx
+    
+    // カスタム容量を計算
+    let capacity
+    if (verticalMode) {
+      const charHeight = actualFontSize
+      const colWidth = actualLineHeight
+      const rows = Math.floor(visibleHeight / charHeight)
+      const cols = Math.floor(visibleWidth / colWidth)
+      capacity = {
+        totalCharacters: rows * cols,
+        rows,
+        cols,
+        charactersPerRow: cols,
+        charactersPerColumn: rows
+      }
+    } else {
+      const charWidth = actualFontSize * 1.0  // 日本語文字の幅
+      const rowHeight = actualLineHeight
+      const charactersPerRow = Math.floor(visibleWidth / charWidth)
+      const rows = Math.floor(visibleHeight / rowHeight)
+      capacity = {
+        totalCharacters: charactersPerRow * rows,
+        rows,
+        cols: charactersPerRow,
+        charactersPerRow,
+        charactersPerColumn: rows
+      }
+    }
+
+    if (capacity.totalCharacters > 0) {
+      const calculatedPages = divideIntoPages(
+        document.nodes,
+        capacity,
+        verticalMode
+      )
+      setPages(calculatedPages)
+      setCurrentPageIndex(0)
+    }
+  }, [document, verticalMode, visibleDimensions, fontSize, lineHeight, paddingVertical, paddingHorizontal])
 
   // ノードのレンダリング関数
   const renderNode = (node: AozoraNode, index: number): React.ReactElement | string => {
@@ -312,18 +381,63 @@ export const Reader: React.FC<ReaderProps> = ({
   const readerStyle: React.CSSProperties = {
     fontSize: `${fontSize}px`,
     lineHeight: lineHeight,
+  }
+
+  // 各ページのスタイル（パディングを含む）
+  const pageStyle: React.CSSProperties = {
     padding: `${paddingVertical}rem ${paddingHorizontal}rem`,
+  }
+
+  // ページをレンダリング
+  const renderPages = () => {
+    if (pages.length === 0) {
+      // ページがまだ計算されていない場合は元のノードを表示（パディング付き）
+      return (
+        <div className="page page-current" style={pageStyle}>
+          <div className="page-content-wrapper">
+            {document.nodes.map((node, index) => renderNode(node, index))}
+          </div>
+        </div>
+      )
+    }
+
+    // 各ページをdiv.pageでラップ
+    return pages.map((page, pageIndex) => {
+      const pageNodes = getNodesFromPage(page)
+      
+      const pageClasses = [
+        'page',
+        pageIndex === currentPageIndex ? 'page-current' : ''
+      ].filter(Boolean).join(' ')
+      
+      return (
+        <div 
+          key={pageIndex} 
+          className={pageClasses}
+          data-page={pageIndex + 1}
+          style={pageStyle}
+        >
+          <div className="page-content-wrapper">
+            {pageNodes.map((node, nodeIndex) => 
+              renderNode(node, `${pageIndex}-${nodeIndex}` as any)
+            )}
+          </div>
+        </div>
+      )
+    })
   }
 
   return (
     <>
       <div ref={readerRef} className={readerClass} style={readerStyle}>
-        {document.nodes.map((node, index) => renderNode(node, index))}
+        {renderPages()}
       </div>
-      {/* 表示可能な列数と行数を表示するフローティングラベル */}
-      {/* <div className="dimensions-label">
-        {visibleDimensions.cols} × {visibleDimensions.rows}
-      </div> */}
+      {/* ページ情報を表示 */}
+      {pages.length > 0 && (
+        <div className="page-info">
+          {currentPageIndex + 1} / {pages.length}
+        </div>
+      )}
     </>
   )
 }

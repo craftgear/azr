@@ -265,6 +265,77 @@ ruby rt {
   color: black;
 }
 
+/* ページスタイル */
+.page {
+  display: none;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  position: relative;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 横書きモードのページ */
+.reader-horizontal .page {
+  flex-direction: column;
+}
+
+/* 縦書きモードのページ */
+.reader-vertical .page {
+  flex-direction: row-reverse; /* 縦書きは右から左へ */
+}
+
+/* 現在のページのみ表示 */
+.reader-horizontal .page-current {
+  display: flex;
+}
+
+.reader-vertical .page-current {
+  display: flex;
+}
+
+/* コンテンツラッパー（センタリング時の内部要素） */
+.page-content-wrapper {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* 縦書きモードでのコンテンツラッパー */
+.reader-vertical .page-content-wrapper {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  height: 100%;
+}
+
+/* 横書きモードでのコンテンツラッパー */
+.reader-horizontal .page-content-wrapper {
+  writing-mode: horizontal-tb;
+  width: 100%;
+}
+
+/* ページ情報表示 */
+.page-info {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-family: monospace;
+  z-index: 1000;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ダークモード時のページ情報 */
+.reader-dark ~ .page-info {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
 /* ページネーションモード */
 .reader-pagination {
   width: 100%;

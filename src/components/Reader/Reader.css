@@ -272,27 +272,27 @@ ruby rt {
   height: 100%;
   box-sizing: border-box;
   position: relative;
-}
-
-/* 現在のページのみ表示 */
-.page-current {
-  display: block;
-}
-
-/* センタリングされたページ - 横書きモード */
-.reader-horizontal .page-centered {
-  display: flex;
   justify-content: center;
   align-items: center;
+}
+
+/* 横書きモードのページ */
+.reader-horizontal .page {
   flex-direction: column;
 }
 
-/* センタリングされたページ - 縦書きモード */
-.reader-vertical .page-centered {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+/* 縦書きモードのページ */
+.reader-vertical .page {
   flex-direction: row-reverse; /* 縦書きは右から左へ */
+}
+
+/* 現在のページのみ表示 */
+.reader-horizontal .page-current {
+  display: flex;
+}
+
+.reader-vertical .page-current {
+  display: flex;
 }
 
 /* コンテンツラッパー（センタリング時の内部要素） */

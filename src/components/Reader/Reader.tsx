@@ -147,13 +147,15 @@ export const Reader: React.FC<ReaderProps> = ({
       const actualLineHeight = parseFloat(computedStyle.lineHeight) || actualFontSize * lineHeight
 
       // パディングを考慮した実際の表示エリアサイズ
-      const paddingTop = parseFloat(computedStyle.paddingTop) || 0
-      const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
-      const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0
-      const paddingRight = parseFloat(computedStyle.paddingRight) || 0
+      // パディングはページレベルで適用されるので、propの値を使用
+      const remToPixel = actualFontSize || 16
+      const paddingTopPx = paddingVertical * remToPixel
+      const paddingBottomPx = paddingVertical * remToPixel
+      const paddingLeftPx = paddingHorizontal * remToPixel
+      const paddingRightPx = paddingHorizontal * remToPixel
 
-      const visibleHeight = element.clientHeight - paddingTop - paddingBottom
-      const visibleWidth = element.clientWidth - paddingLeft - paddingRight
+      const visibleHeight = element.clientHeight - paddingTopPx - paddingBottomPx
+      const visibleWidth = element.clientWidth - paddingLeftPx - paddingRightPx
 
       if (verticalMode) {
         // 縦書きモード: 文字は縦に並ぶ
@@ -192,7 +194,7 @@ export const Reader: React.FC<ReaderProps> = ({
       window.removeEventListener('resize', handleResize)
       observer.disconnect()
     }
-  }, [verticalMode, fontSize, lineHeight])
+  }, [verticalMode, fontSize, lineHeight, paddingVertical, paddingHorizontal])
 
   // ドキュメントと表示容量に基づいてページを計算
   useEffect(() => {
@@ -386,34 +388,15 @@ export const Reader: React.FC<ReaderProps> = ({
     padding: `${paddingVertical}rem ${paddingHorizontal}rem`,
   }
 
-  // ページのセンタリングが必要かチェック
-  const shouldCenterPage = (page: Page, pageCapacity: number): boolean => {
-    // ページの容量使用率を計算
-    const capacityUsage = page.totalCharacters / pageCapacity
-    
-    // 見出しのみのページかチェック
-    const hasOnlyHeadings = page.lines.every(line => 
-      line.nodes.every(node => 
-        node.type === 'heading' || 
-        node.type === 'header' ||
-        node.type === 'text' && node.content.trim() === ''
-      )
-    )
-    
-    // センタリング条件：
-    // 1. 見出しのみのページ
-    // 2. 容量の50%未満しか使用していないページ
-    // 3. 1行しかないページ
-    return hasOnlyHeadings || capacityUsage < 0.5 || page.lines.length === 1
-  }
-
   // ページをレンダリング
   const renderPages = () => {
     if (pages.length === 0) {
       // ページがまだ計算されていない場合は元のノードを表示（パディング付き）
       return (
         <div className="page page-current" style={pageStyle}>
-          {document.nodes.map((node, index) => renderNode(node, index))}
+          <div className="page-content-wrapper">
+            {document.nodes.map((node, index) => renderNode(node, index))}
+          </div>
         </div>
       )
     }
@@ -421,17 +404,10 @@ export const Reader: React.FC<ReaderProps> = ({
     // 各ページをdiv.pageでラップ
     return pages.map((page, pageIndex) => {
       const pageNodes = getNodesFromPage(page)
-      // ページ容量を計算（最後に計算された容量を使用）
-      const pageCapacity = verticalMode ? 
-        visibleDimensions.cols * visibleDimensions.rows : 
-        visibleDimensions.cols * visibleDimensions.rows
-      const shouldCenter = shouldCenterPage(page, pageCapacity || 100)
       
-      // センタリング用のクラスを追加
       const pageClasses = [
         'page',
-        pageIndex === currentPageIndex ? 'page-current' : '',
-        shouldCenter ? 'page-centered' : ''
+        pageIndex === currentPageIndex ? 'page-current' : ''
       ].filter(Boolean).join(' ')
       
       return (
@@ -441,17 +417,11 @@ export const Reader: React.FC<ReaderProps> = ({
           data-page={pageIndex + 1}
           style={pageStyle}
         >
-          {shouldCenter ? (
-            <div className="page-content-wrapper">
-              {pageNodes.map((node, nodeIndex) => 
-                renderNode(node, `${pageIndex}-${nodeIndex}` as any)
-              )}
-            </div>
-          ) : (
-            pageNodes.map((node, nodeIndex) => 
+          <div className="page-content-wrapper">
+            {pageNodes.map((node, nodeIndex) => 
               renderNode(node, `${pageIndex}-${nodeIndex}` as any)
-            )
-          )}
+            )}
+          </div>
         </div>
       )
     })

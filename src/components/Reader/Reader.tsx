@@ -95,14 +95,12 @@ export const Reader: React.FC<ReaderProps> = ({
           // 縦書きでは左キーで次のページへ
           if (currentPageIndex < pages.length - 1) {
             setCurrentPageIndex(currentPageIndex + 1)
-            element.scrollLeft = 0  // スクロール位置をリセット
           }
         } else if (e.key === 'ArrowRight') {
           e.preventDefault()
           // 縦書きでは右キーで前のページへ
           if (currentPageIndex > 0) {
             setCurrentPageIndex(currentPageIndex - 1)
-            element.scrollLeft = 0  // スクロール位置をリセット
           }
         }
       } else {
@@ -117,14 +115,12 @@ export const Reader: React.FC<ReaderProps> = ({
           // 横書きでは上キーで前のページへ
           if (currentPageIndex > 0) {
             setCurrentPageIndex(currentPageIndex - 1)
-            element.scrollTop = 0  // スクロール位置をリセット
           }
         } else if (e.key === 'ArrowDown') {
           e.preventDefault()
           // 横書きでは下キーで次のページへ
           if (currentPageIndex < pages.length - 1) {
             setCurrentPageIndex(currentPageIndex + 1)
-            element.scrollTop = 0  // スクロール位置をリセット
           }
         }
       }
@@ -407,7 +403,9 @@ export const Reader: React.FC<ReaderProps> = ({
       
       const pageClasses = [
         'page',
-        pageIndex === currentPageIndex ? 'page-current' : ''
+        pageIndex === currentPageIndex ? 'page-current' : '',
+        pageIndex === currentPageIndex + 1 ? 'page-next' : '',
+        pageIndex === currentPageIndex - 1 ? 'page-prev' : ''
       ].filter(Boolean).join(' ')
       
       return (
@@ -429,7 +427,7 @@ export const Reader: React.FC<ReaderProps> = ({
 
   return (
     <>
-      <div ref={readerRef} className={readerClass} style={readerStyle}>
+      <div ref={readerRef} className={readerClass} style={{...readerStyle, position: 'relative', overflow: 'hidden'}}>
         {renderPages()}
       </div>
       {/* ページ情報を表示 */}

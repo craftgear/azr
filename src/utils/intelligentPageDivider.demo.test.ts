@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { AozoraNode } from '../types/aozora'
 import type { CharacterCapacity } from './readerCapacityCalculator'
-import { divideIntoPages } from './pageDivider'
 import { divideIntoIntelligentPages } from './intelligentPageDivider'
 
 describe('Intelligent Paging Demo', () => {
@@ -13,7 +12,7 @@ describe('Intelligent Paging Demo', () => {
     charactersPerColumn: rows
   })
 
-  it('demonstrates intelligent vs basic paging differences', () => {
+  it('demonstrates intelligent paging features', () => {
     // 実際の青空文庫風サンプルテキスト
     const sampleNodes: AozoraNode[] = [
       { type: 'heading', content: '吾輩は猫である', level: 'large' },
@@ -34,9 +33,6 @@ describe('Intelligent Paging Demo', () => {
 
     const capacity = createCapacity(60, 10) // 60文字/ページ、10文字/列
 
-    // 基本ページング
-    const basicPages = divideIntoPages(sampleNodes, capacity, true)
-
     // インテリジェントページング
     const intelligentPages = divideIntoIntelligentPages(
       sampleNodes,
@@ -45,17 +41,10 @@ describe('Intelligent Paging Demo', () => {
       {
         enableSemanticBoundaries: true,
         enableContentAwareCapacity: true,
-        enableLookAhead: true
+        enableLookAhead: true,
+        enableLineBreaking: true
       }
     )
-
-    console.log('\n=== BASIC PAGING ===')
-    basicPages.forEach((page, index) => {
-      console.log(`Page ${index + 1}: ${page.totalCharacters} chars, ${page.lines.length} lines`)
-      page.lines.forEach((line, lineIndex) => {
-        console.log(`  Line ${lineIndex + 1}: "${line.text}" (${line.characterCount} chars)`)
-      })
-    })
 
     console.log('\n=== INTELLIGENT PAGING ===')
     intelligentPages.forEach((page, index) => {
@@ -65,16 +54,10 @@ describe('Intelligent Paging Demo', () => {
       })
     })
 
-    // 両方のページングが動作することを確認
-    expect(basicPages.length).toBeGreaterThan(0)
+    // ページングが動作することを確認
     expect(intelligentPages.length).toBeGreaterThan(0)
 
     // ページが正しく作成されていることを確認
-    basicPages.forEach(page => {
-      expect(page.lines.length).toBeGreaterThan(0)
-      expect(page.totalCharacters).toBeGreaterThan(0)
-    })
-
     intelligentPages.forEach(page => {
       expect(page.lines.length).toBeGreaterThan(0)
       expect(page.totalCharacters).toBeGreaterThan(0)

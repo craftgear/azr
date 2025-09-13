@@ -36,6 +36,7 @@ export type IntelligentPageOptions = {
   enableSemanticBoundaries: boolean
   enableContentAwareCapacity: boolean
   enableLookAhead: boolean
+  enableLineBreaking?: boolean
   lookAheadWindow?: number
   penaltyWeights?: {
     midSentence: number
@@ -211,7 +212,8 @@ export const findOptimalBreakPoint = (
   options: IntelligentPageOptions = {
     enableSemanticBoundaries: true,
     enableContentAwareCapacity: true,
-    enableLookAhead: true
+    enableLookAhead: true,
+    enableLineBreaking: false
   }
 ): OptimalBreakPoint => {
   const penaltyWeights = { ...DEFAULT_PENALTY_WEIGHTS, ...options.penaltyWeights }
@@ -313,14 +315,11 @@ export const divideIntoIntelligentPages = (
   options: IntelligentPageOptions = {
     enableSemanticBoundaries: true,
     enableContentAwareCapacity: true,
-    enableLookAhead: true
+    enableLookAhead: true,
+    enableLineBreaking: false
   }
 ): Page[] => {
   const pages: Page[] = []
-
-  // 基本的な行分割を実行
-  const lines = splitIntoLines(nodes)
-  if (lines.length === 0) return []
 
   // コンテンツ複雑度を計算して容量を調整
   let effectiveCapacity = capacity
@@ -328,6 +327,15 @@ export const divideIntoIntelligentPages = (
     const complexity = calculateContentComplexity(nodes)
     effectiveCapacity = adjustCapacityForContent(capacity, complexity)
   }
+
+  // 行の最大文字数を計算（ページ容量の60%程度を目安）
+  const maxCharsPerLine = options.enableLineBreaking
+    ? Math.floor(effectiveCapacity.totalCharacters * 0.6)
+    : undefined
+
+  // 基本的な行分割を実行
+  const lines = splitIntoLines(nodes, maxCharsPerLine)
+  if (lines.length === 0) return []
 
   // 縦書きと横書きで行数の定義が異なる
   const rowsPerColumn = verticalMode ? effectiveCapacity.rows : effectiveCapacity.charactersPerRow

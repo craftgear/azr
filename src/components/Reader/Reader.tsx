@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react'
 import type { ParsedAozoraDocument, AozoraNode } from '../../types/aozora'
 import { calculateReaderCapacity } from '../../utils/readerCapacityCalculator'
 import { divideIntoPages, getNodesFromPage, type Page } from '../../utils/pageDivider'
+import { divideIntoIntelligentPages, type IntelligentPageOptions } from '../../utils/intelligentPageDivider'
 import './Reader.css'
 
 type ReaderProps = {
@@ -14,6 +15,8 @@ type ReaderProps = {
   smoothScroll?: boolean
   paddingVertical?: number
   paddingHorizontal?: number
+  intelligentPaging?: boolean
+  intelligentPagingOptions?: IntelligentPageOptions
 }
 
 export const Reader: React.FC<ReaderProps> = ({
@@ -26,11 +29,27 @@ export const Reader: React.FC<ReaderProps> = ({
   smoothScroll = true,
   paddingVertical = 2,
   paddingHorizontal = 3,
+  intelligentPaging = false,
+  intelligentPagingOptions,
 }) => {
   const readerRef = useRef<HTMLDivElement>(null)
   const [visibleDimensions, setVisibleDimensions] = useState({ cols: 0, rows: 0 })
   const [pages, setPages] = useState<Page[]>([])
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
+
+  // intelligentPagingOptionsをメモ化して無限レンダリングを防ぐ
+  const memoizedIntelligentOptions = useMemo(
+    () => intelligentPagingOptions || {
+      enableSemanticBoundaries: true,
+      enableContentAwareCapacity: true,
+      enableLookAhead: true
+    },
+    [
+      intelligentPagingOptions?.enableSemanticBoundaries,
+      intelligentPagingOptions?.enableContentAwareCapacity,
+      intelligentPagingOptions?.enableLookAhead
+    ]
+  )
 
   useEffect(() => {
     const animateScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 200) => {
@@ -245,15 +264,22 @@ export const Reader: React.FC<ReaderProps> = ({
     }
 
     if (capacity.totalCharacters > 0) {
-      const calculatedPages = divideIntoPages(
-        document.nodes,
-        capacity,
-        verticalMode
-      )
+      const calculatedPages = intelligentPaging
+        ? divideIntoIntelligentPages(
+            document.nodes,
+            capacity,
+            verticalMode,
+            memoizedIntelligentOptions
+          )
+        : divideIntoPages(
+            document.nodes,
+            capacity,
+            verticalMode
+          )
       setPages(calculatedPages)
       setCurrentPageIndex(0)
     }
-  }, [document, verticalMode, visibleDimensions, fontSize, lineHeight, paddingVertical, paddingHorizontal])
+  }, [document, verticalMode, visibleDimensions, fontSize, lineHeight, paddingVertical, paddingHorizontal, intelligentPaging, memoizedIntelligentOptions])
 
   // ノードのレンダリング関数
   const renderNode = (node: AozoraNode, index: number): React.ReactElement | string => {

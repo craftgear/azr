@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { Reader } from './Reader'
 import type { ParsedAozoraDocument } from '../../types/aozora'
@@ -87,5 +87,49 @@ describe('Reader', () => {
     }
     const { container } = render(<Reader document={doc} />)
     expect(container.querySelector('br')).toBeDefined()
+  })
+
+  it('should use intelligent paging when enabled', () => {
+    const doc: ParsedAozoraDocument = {
+      nodes: [
+        { type: 'text', content: 'テストテキストです。' },
+        { type: 'heading', content: '見出し', level: 'large' }
+      ],
+      metadata: {}
+    }
+
+    render(
+      <Reader
+        document={doc}
+        intelligentPaging={true}
+        intelligentPagingOptions={{
+          enableSemanticBoundaries: true,
+          enableContentAwareCapacity: false,
+          enableLookAhead: false
+        }}
+      />
+    )
+
+    // コンテンツが表示されることを確認
+    expect(screen.getByText('テストテキストです。')).toBeDefined()
+    expect(screen.getByText('見出し')).toBeDefined()
+  })
+
+  it('should use default intelligent paging options when none provided', () => {
+    const doc: ParsedAozoraDocument = {
+      nodes: [
+        { type: 'text', content: 'テストテキストです。' }
+      ],
+      metadata: {}
+    }
+
+    render(
+      <Reader
+        document={doc}
+        intelligentPaging={true}
+      />
+    )
+
+    expect(screen.getByText('テストテキストです。')).toBeDefined()
   })
 })

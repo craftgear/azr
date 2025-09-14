@@ -16,6 +16,7 @@ type ReaderProps = {
   paddingVertical?: number
   paddingHorizontal?: number
   intelligentPagingOptions?: IntelligentPageOptions
+  enableWheelNavigation?: boolean
 }
 
 export const Reader: React.FC<ReaderProps> = ({
@@ -29,6 +30,7 @@ export const Reader: React.FC<ReaderProps> = ({
   paddingVertical = 2,
   paddingHorizontal = 3,
   intelligentPagingOptions,
+  enableWheelNavigation = true,
 }) => {
   const readerRef = useRef<HTMLDivElement>(null)
   const [visibleDimensions, setVisibleDimensions] = useState({ cols: 0, rows: 0 })
@@ -148,6 +150,54 @@ export const Reader: React.FC<ReaderProps> = ({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [verticalMode, fontSize, lineHeight, smoothScroll, currentPageIndex, pages.length])
+
+  // マウスホイールでのページナビゲーション
+  useEffect(() => {
+    if (!enableWheelNavigation || !readerRef.current) return
+
+    let debounceTimer: number | null = null
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+
+      // デバウンス処理
+      if (debounceTimer !== null) {
+        clearTimeout(debounceTimer)
+      }
+
+      debounceTimer = window.setTimeout(() => {
+        const deltaY = e.deltaY
+
+        if (verticalMode) {
+          // 縦書きモード: 下スクロール = 次ページ、上スクロール = 前ページ
+          if (deltaY > 0 && currentPageIndex < pages.length - 1) {
+            setCurrentPageIndex(currentPageIndex + 1)
+          } else if (deltaY < 0 && currentPageIndex > 0) {
+            setCurrentPageIndex(currentPageIndex - 1)
+          }
+        } else {
+          // 横書きモード: 下スクロール = 次ページ、上スクロール = 前ページ
+          if (deltaY > 0 && currentPageIndex < pages.length - 1) {
+            setCurrentPageIndex(currentPageIndex + 1)
+          } else if (deltaY < 0 && currentPageIndex > 0) {
+            setCurrentPageIndex(currentPageIndex - 1)
+          }
+        }
+
+        debounceTimer = null
+      }, 100)
+    }
+
+    const element = readerRef.current
+    element.addEventListener('wheel', handleWheel, { passive: false })
+
+    return () => {
+      if (debounceTimer !== null) {
+        clearTimeout(debounceTimer)
+      }
+      element.removeEventListener('wheel', handleWheel)
+    }
+  }, [enableWheelNavigation, verticalMode, currentPageIndex, pages.length])
 
   // 表示可能な行数と列数を計算
   useEffect(() => {
@@ -284,10 +334,23 @@ export const Reader: React.FC<ReaderProps> = ({
 
         const processTextPart = (part: string) => {
           if (verticalMode) {
-            const segments = part.split(/([―]+)/g)
-            return segments.map((segment, idx) => {
+            // ダッシュ記号の処理
+            const dashSegments = part.split(/([―]+)/g)
+            const processedDashSegments = dashSegments.map((segment, idx) => {
               if (/^―+$/.test(segment)) {
                 return <span key={idx} className="dash-line">{segment}</span>
+              }
+              return segment
+            })
+
+            // 省略記号の処理
+            return processedDashSegments.map((segment, idx) => {
+              if (typeof segment === 'string') {
+                // 省略記号を縦書き用記号に変換
+                return segment
+                  .replace(/…/g, '⋯')       // 横省略記号 → 縦省略記号
+                  .replace(/‥/g, '・・')    // 2点省略記号 → 中点2つ
+                  .replace(/\.\.\./g, '・・・') // ASCII 3つドット → 中点3つ
               }
               return segment
             })
@@ -378,6 +441,12 @@ export const Reader: React.FC<ReaderProps> = ({
             {node.content}
           </span>
         )
+
+      case 'block_indent_start':
+        return <br key={index} />
+
+      case 'block_indent_end':
+        return <br key={index} />
 
       default:
         return ''

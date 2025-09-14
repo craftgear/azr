@@ -253,6 +253,13 @@ const processSpecialTag = (state: ParserState): boolean => {
   const blockIndentStartMatch = tagContent.match(/^ここから([０-９0-9]+)字下げ$/)
   if (blockIndentStartMatch) {
     const indentCount = parseJapaneseNumber(blockIndentStartMatch[1])
+
+    // ブロック字下げ開始タグとして空行を追加
+    addNode(state, {
+      type: 'block_indent_start',
+      indent: indentCount
+    })
+
     state.blockIndentStack.push({ indent: indentCount, nodes: [] })
     state.currentPosition = tagEnd + 1
     return true
@@ -268,6 +275,12 @@ const processSpecialTag = (state: ParserState): boolean => {
         indent: indentContext.indent
       })
     }
+
+    // ブロック字下げ終了タグとして空行を追加
+    addNode(state, {
+      type: 'block_indent_end'
+    })
+
     state.currentPosition = tagEnd + 1
     return true
   }

@@ -39,6 +39,17 @@ export type BlockIndent = {
   style?: 'normal' | 'hanging'  // 通常字下げ or ぶら下げ
 }
 
+// ブロック字下げ開始タグ（空行として表示）
+export type BlockIndentStart = {
+  type: 'block_indent_start'
+  indent: number  // 字下げの文字数
+}
+
+// ブロック字下げ終了タグ（空行として表示）
+export type BlockIndentEnd = {
+  type: 'block_indent_end'
+}
+
 // 特殊文字説明（レンダリングはせず、注記として保持）
 export type SpecialCharNote = {
   type: 'special_char_note'
@@ -59,15 +70,17 @@ export type Header = {
   level: number
 }
 
-export type AozoraNode = 
-  | RubyText 
-  | PlainText 
-  | EmphasisDots 
-  | TextSize 
-  | Heading 
-  | BlockIndent 
-  | SpecialCharNote 
-  | Emphasis 
+export type AozoraNode =
+  | RubyText
+  | PlainText
+  | EmphasisDots
+  | TextSize
+  | Heading
+  | BlockIndent
+  | BlockIndentStart
+  | BlockIndentEnd
+  | SpecialCharNote
+  | Emphasis
   | Header
 
 export type ParsedAozoraDocument = {

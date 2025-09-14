@@ -60,7 +60,15 @@ export const extractTextFromNode = (node: AozoraNode): string => {
     
     case 'header':
       return node.content
-    
+
+    case 'block_indent_start':
+      // 開始タグは空行として扱う（テキスト表示はしない）
+      return ''
+
+    case 'block_indent_end':
+      // 終了タグは空行として扱う（テキスト表示はしない）
+      return ''
+
     default:
       return ''
   }

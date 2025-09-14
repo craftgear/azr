@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react'
 import type { ParsedAozoraDocument, AozoraNode } from '../../types/aozora'
 import { calculateReaderCapacity } from '../../utils/readerCapacityCalculator'
-import { divideIntoPages, getNodesFromPage, type Page } from '../../utils/pageDivider'
+import { divideIntoIntelligentPages, type IntelligentPageOptions } from '../../utils/intelligentPageDivider'
+import type { Page } from '../../utils/pageDivider'
 import './Reader.css'
 
 type ReaderProps = {
@@ -14,6 +15,9 @@ type ReaderProps = {
   smoothScroll?: boolean
   paddingVertical?: number
   paddingHorizontal?: number
+  intelligentPagingOptions?: IntelligentPageOptions
+  enableWheelNavigation?: boolean
+  fastNavigationMode?: boolean
 }
 
 export const Reader: React.FC<ReaderProps> = ({
@@ -26,11 +30,69 @@ export const Reader: React.FC<ReaderProps> = ({
   smoothScroll = true,
   paddingVertical = 2,
   paddingHorizontal = 3,
+  intelligentPagingOptions,
+  enableWheelNavigation = true,
+  fastNavigationMode = true,
 }) => {
   const readerRef = useRef<HTMLDivElement>(null)
   const [visibleDimensions, setVisibleDimensions] = useState({ cols: 0, rows: 0 })
   const [pages, setPages] = useState<Page[]>([])
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
+
+  // 高速ナビゲーション用の状態
+  const [targetPageIndex, setTargetPageIndex] = useState(0)
+  const [isNavigating, setIsNavigating] = useState(false)
+
+  // intelligentPagingOptionsをメモ化して無限レンダリングを防ぐ
+  const memoizedIntelligentOptions = useMemo(
+    () => intelligentPagingOptions || {
+      enableSemanticBoundaries: true,
+      enableContentAwareCapacity: true,
+      enableLookAhead: true,
+      enableLineBreaking: true
+    },
+    [
+      intelligentPagingOptions?.enableSemanticBoundaries,
+      intelligentPagingOptions?.enableContentAwareCapacity,
+      intelligentPagingOptions?.enableLookAhead,
+      intelligentPagingOptions?.enableLineBreaking
+    ]
+  )
+
+  // 遅延レンダリング: targetPageIndexをcurrentPageIndexに同期
+  useEffect(() => {
+    if (!fastNavigationMode) {
+      // 高速ナビゲーションが無効の場合は即座に同期
+      setCurrentPageIndex(targetPageIndex)
+      return
+    }
+
+    let syncTimer: number | null = null
+
+    const syncPages = () => {
+      setCurrentPageIndex(targetPageIndex)
+      setIsNavigating(false)
+    }
+
+    if (targetPageIndex !== currentPageIndex) {
+      setIsNavigating(true)
+
+      if (syncTimer !== null) {
+        clearTimeout(syncTimer)
+      }
+
+      // 50ms後に同期 (150ms から高速化)
+      syncTimer = window.setTimeout(syncPages, 50)
+    } else {
+      setIsNavigating(false)
+    }
+
+    return () => {
+      if (syncTimer !== null) {
+        clearTimeout(syncTimer)
+      }
+    }
+  }, [targetPageIndex, currentPageIndex, fastNavigationMode])
 
   useEffect(() => {
     const animateScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 200) => {
@@ -93,14 +155,26 @@ export const Reader: React.FC<ReaderProps> = ({
         if (e.key === 'ArrowLeft') {
           e.preventDefault()
           // 縦書きでは左キーで次のページへ
-          if (currentPageIndex < pages.length - 1) {
-            setCurrentPageIndex(currentPageIndex + 1)
+          if (fastNavigationMode) {
+            if (targetPageIndex < pages.length - 1) {
+              setTargetPageIndex(targetPageIndex + 1)
+            }
+          } else {
+            if (currentPageIndex < pages.length - 1) {
+              setCurrentPageIndex(currentPageIndex + 1)
+            }
           }
         } else if (e.key === 'ArrowRight') {
           e.preventDefault()
           // 縦書きでは右キーで前のページへ
-          if (currentPageIndex > 0) {
-            setCurrentPageIndex(currentPageIndex - 1)
+          if (fastNavigationMode) {
+            if (targetPageIndex > 0) {
+              setTargetPageIndex(targetPageIndex - 1)
+            }
+          } else {
+            if (currentPageIndex > 0) {
+              setCurrentPageIndex(currentPageIndex - 1)
+            }
           }
         }
       } else {
@@ -113,14 +187,26 @@ export const Reader: React.FC<ReaderProps> = ({
         if (e.key === 'ArrowUp') {
           e.preventDefault()
           // 横書きでは上キーで前のページへ
-          if (currentPageIndex > 0) {
-            setCurrentPageIndex(currentPageIndex - 1)
+          if (fastNavigationMode) {
+            if (targetPageIndex > 0) {
+              setTargetPageIndex(targetPageIndex - 1)
+            }
+          } else {
+            if (currentPageIndex > 0) {
+              setCurrentPageIndex(currentPageIndex - 1)
+            }
           }
         } else if (e.key === 'ArrowDown') {
           e.preventDefault()
           // 横書きでは下キーで次のページへ
-          if (currentPageIndex < pages.length - 1) {
-            setCurrentPageIndex(currentPageIndex + 1)
+          if (fastNavigationMode) {
+            if (targetPageIndex < pages.length - 1) {
+              setTargetPageIndex(targetPageIndex + 1)
+            }
+          } else {
+            if (currentPageIndex < pages.length - 1) {
+              setCurrentPageIndex(currentPageIndex + 1)
+            }
           }
         }
       }
@@ -128,7 +214,57 @@ export const Reader: React.FC<ReaderProps> = ({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [verticalMode, fontSize, lineHeight, smoothScroll, currentPageIndex, pages.length])
+  }, [verticalMode, fontSize, lineHeight, smoothScroll, currentPageIndex, targetPageIndex, pages.length, fastNavigationMode])
+
+  // マウスホイールでのページナビゲーション (即座に反応)
+  useEffect(() => {
+    if (!enableWheelNavigation || !readerRef.current) return
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+
+      const deltaY = e.deltaY
+
+      if (verticalMode) {
+        // 縦書きモード: 下スクロール = 次ページ、上スクロール = 前ページ
+        if (fastNavigationMode) {
+          if (deltaY > 0 && targetPageIndex < pages.length - 1) {
+            setTargetPageIndex(targetPageIndex + 1)
+          } else if (deltaY < 0 && targetPageIndex > 0) {
+            setTargetPageIndex(targetPageIndex - 1)
+          }
+        } else {
+          if (deltaY > 0 && currentPageIndex < pages.length - 1) {
+            setCurrentPageIndex(currentPageIndex + 1)
+          } else if (deltaY < 0 && currentPageIndex > 0) {
+            setCurrentPageIndex(currentPageIndex - 1)
+          }
+        }
+      } else {
+        // 横書きモード: 下スクロール = 次ページ、上スクロール = 前ページ
+        if (fastNavigationMode) {
+          if (deltaY > 0 && targetPageIndex < pages.length - 1) {
+            setTargetPageIndex(targetPageIndex + 1)
+          } else if (deltaY < 0 && targetPageIndex > 0) {
+            setTargetPageIndex(targetPageIndex - 1)
+          }
+        } else {
+          if (deltaY > 0 && currentPageIndex < pages.length - 1) {
+            setCurrentPageIndex(currentPageIndex + 1)
+          } else if (deltaY < 0 && currentPageIndex > 0) {
+            setCurrentPageIndex(currentPageIndex - 1)
+          }
+        }
+      }
+    }
+
+    const element = readerRef.current
+    element.addEventListener('wheel', handleWheel, { passive: false })
+
+    return () => {
+      element.removeEventListener('wheel', handleWheel)
+    }
+  }, [enableWheelNavigation, verticalMode, currentPageIndex, targetPageIndex, pages.length, fastNavigationMode])
 
   // 表示可能な行数と列数を計算
   useEffect(() => {
@@ -245,15 +381,17 @@ export const Reader: React.FC<ReaderProps> = ({
     }
 
     if (capacity.totalCharacters > 0) {
-      const calculatedPages = divideIntoPages(
+      const calculatedPages = divideIntoIntelligentPages(
         document.nodes,
         capacity,
-        verticalMode
+        verticalMode,
+        memoizedIntelligentOptions
       )
       setPages(calculatedPages)
       setCurrentPageIndex(0)
+      setTargetPageIndex(0)
     }
-  }, [document, verticalMode, visibleDimensions, fontSize, lineHeight, paddingVertical, paddingHorizontal])
+  }, [document, verticalMode, visibleDimensions, fontSize, lineHeight, paddingVertical, paddingHorizontal, memoizedIntelligentOptions])
 
   // ノードのレンダリング関数
   const renderNode = (node: AozoraNode, index: number): React.ReactElement | string => {
@@ -264,10 +402,23 @@ export const Reader: React.FC<ReaderProps> = ({
 
         const processTextPart = (part: string) => {
           if (verticalMode) {
-            const segments = part.split(/([―]+)/g)
-            return segments.map((segment, idx) => {
+            // ダッシュ記号の処理
+            const dashSegments = part.split(/([―]+)/g)
+            const processedDashSegments = dashSegments.map((segment, idx) => {
               if (/^―+$/.test(segment)) {
                 return <span key={idx} className="dash-line">{segment}</span>
+              }
+              return segment
+            })
+
+            // 省略記号の処理
+            return processedDashSegments.map((segment, idx) => {
+              if (typeof segment === 'string') {
+                // 省略記号を縦書き用記号に変換
+                return segment
+                  .replace(/…/g, '⋯')       // 横省略記号 → 縦省略記号
+                  .replace(/‥/g, '・・')    // 2点省略記号 → 中点2つ
+                  .replace(/\.\.\./g, '・・・') // ASCII 3つドット → 中点3つ
               }
               return segment
             })
@@ -359,6 +510,12 @@ export const Reader: React.FC<ReaderProps> = ({
           </span>
         )
 
+      case 'block_indent_start':
+        return <br key={index} />
+
+      case 'block_indent_end':
+        return <br key={index} />
+
       default:
         return ''
     }
@@ -372,7 +529,7 @@ export const Reader: React.FC<ReaderProps> = ({
     )
   }
 
-  const readerClass = `reader reader-${theme} ${verticalMode ? 'reader-vertical' : 'reader-horizontal'} ruby-${rubySize}`
+  const readerClass = `reader reader-${theme} ${verticalMode ? 'reader-vertical' : 'reader-horizontal'} ruby-${rubySize} ${fastNavigationMode && isNavigating ? 'fast-navigating' : ''}`
 
   const readerStyle: React.CSSProperties = {
     fontSize: `${fontSize}px`,
@@ -384,7 +541,7 @@ export const Reader: React.FC<ReaderProps> = ({
     padding: `${paddingVertical}rem ${paddingHorizontal}rem`,
   }
 
-  // ページをレンダリング
+  // 仮想ページネーション: 3ページウィンドウのみレンダリング
   const renderPages = () => {
     if (pages.length === 0) {
       // ページがまだ計算されていない場合は元のノードを表示（パディング付き）
@@ -397,32 +554,56 @@ export const Reader: React.FC<ReaderProps> = ({
       )
     }
 
-    // 各ページをdiv.pageでラップ
-    return pages.map((page, pageIndex) => {
-      const pageNodes = getNodesFromPage(page)
-      
-      const pageClasses = [
-        'page',
-        pageIndex === currentPageIndex ? 'page-current' : '',
-        pageIndex === currentPageIndex + 1 ? 'page-next' : '',
-        pageIndex === currentPageIndex - 1 ? 'page-prev' : ''
-      ].filter(Boolean).join(' ')
-      
-      return (
-        <div 
-          key={pageIndex} 
-          className={pageClasses}
-          data-page={pageIndex + 1}
-          style={pageStyle}
-        >
-          <div className="page-content-wrapper">
-            {pageNodes.map((node, nodeIndex) => 
-              renderNode(node, `${pageIndex}-${nodeIndex}` as any)
-            )}
-          </div>
+    // 仮想ページネーション: 現在のページとその前後のみレンダリング
+    const pagesToRender = []
+    const prevPageIndex = currentPageIndex - 1
+    const nextPageIndex = currentPageIndex + 1
+
+    // 前のページ
+    if (prevPageIndex >= 0 && prevPageIndex < pages.length) {
+      pagesToRender.push({
+        pageIndex: prevPageIndex,
+        page: pages[prevPageIndex],
+        className: 'page page-prev'
+      })
+    }
+
+    // 現在のページ
+    if (currentPageIndex >= 0 && currentPageIndex < pages.length) {
+      pagesToRender.push({
+        pageIndex: currentPageIndex,
+        page: pages[currentPageIndex],
+        className: 'page page-current'
+      })
+    }
+
+    // 次のページ
+    if (nextPageIndex >= 0 && nextPageIndex < pages.length) {
+      pagesToRender.push({
+        pageIndex: nextPageIndex,
+        page: pages[nextPageIndex],
+        className: 'page page-next'
+      })
+    }
+
+    return pagesToRender.map(({ pageIndex, page, className }) => (
+      <div
+        key={pageIndex}
+        className={className}
+        data-page={pageIndex + 1}
+        style={pageStyle}
+      >
+        <div className="page-content-wrapper">
+          {page.lines.map((line, lineIndex) => (
+            <div key={`${pageIndex}-line-${lineIndex}`}>
+              {line.nodes.map((node, nodeIndex) =>
+                renderNode(node, `${pageIndex}-${lineIndex}-${nodeIndex}` as any)
+              )}
+            </div>
+          ))}
         </div>
-      )
-    })
+      </div>
+    ))
   }
 
   return (
@@ -433,7 +614,7 @@ export const Reader: React.FC<ReaderProps> = ({
       {/* ページ情報を表示 */}
       {pages.length > 0 && (
         <div className="page-info">
-          {currentPageIndex + 1} / {pages.length}
+          {(fastNavigationMode ? targetPageIndex : currentPageIndex) + 1} / {pages.length}
         </div>
       )}
     </>

@@ -150,14 +150,25 @@ describe('enhancedAozoraParser', () => {
       const result = parseAozoraText(input)
       const merged = mergeTextNodes(result.nodes)
 
-      expect(merged).toHaveLength(1)
+      // Now includes block_indent_start, block_indent, and block_indent_end nodes
+      expect(merged).toHaveLength(3)
+
       expect(merged[0]).toEqual({
+        type: 'block_indent_start',
+        indent: 2
+      })
+
+      expect(merged[1]).toEqual({
         type: 'block_indent',
         content: [{
           type: 'text',
           content: '字下げテキスト'
         }],
         indent: 2
+      })
+
+      expect(merged[2]).toEqual({
+        type: 'block_indent_end'
       })
     })
 
@@ -166,9 +177,16 @@ describe('enhancedAozoraParser', () => {
       const result = parseAozoraText(input)
       const merged = mergeTextNodes(result.nodes)
 
-      expect(merged).toHaveLength(1)
-      expect(merged[0].type).toBe('block_indent')
-      const blockNode = merged[0] as any
+      // Now includes block_indent_start, block_indent, and block_indent_end nodes
+      expect(merged).toHaveLength(3)
+
+      expect(merged[0]).toEqual({
+        type: 'block_indent_start',
+        indent: 3
+      })
+
+      expect(merged[1].type).toBe('block_indent')
+      const blockNode = merged[1] as any
       expect(blockNode.indent).toBe(3)
       // パーサーは漢字を先にテキストとして追加し、その後ルビノードを追加するため3つのノードになる
       expect(blockNode.content).toHaveLength(3)
@@ -184,6 +202,42 @@ describe('enhancedAozoraParser', () => {
       expect(blockNode.content[2]).toEqual({
         type: 'text',
         content: 'の内容'
+      })
+
+      expect(merged[2]).toEqual({
+        type: 'block_indent_end'
+      })
+    })
+
+    it('should handle block indent special tags as blank lines', () => {
+      const input = `［＃ここから２字下げ］
+御家の大変に当り、今後は一門老臣の和合協力が必要である。よって神文誓書して、なにごとによらず、互いに熟議相談しておこなうこと、独り主君にもの申すことあるべからず。また、互いにいかなる意趣あるとも、向後十年間は相互に堪忍して公用の全きよう勤むべし。
+［＃ここで字下げ終わり］`
+
+      const result = parseAozoraText(input)
+
+      // Should have block_indent_start, text with newline, block_indent with content, and block_indent_end nodes
+      expect(result.nodes.length).toBeGreaterThanOrEqual(3)
+
+      // Check for block_indent_start node
+      const startNode = result.nodes.find(node => node.type === 'block_indent_start')
+      expect(startNode).toBeDefined()
+      expect(startNode).toEqual({
+        type: 'block_indent_start',
+        indent: 2
+      })
+
+      // Check for block_indent node with content
+      const blockNode = result.nodes.find(node => node.type === 'block_indent')
+      expect(blockNode).toBeDefined()
+      expect((blockNode as any).indent).toBe(2)
+      expect((blockNode as any).content.length).toBeGreaterThan(0)
+
+      // Check for block_indent_end node
+      const endNode = result.nodes.find(node => node.type === 'block_indent_end')
+      expect(endNode).toBeDefined()
+      expect(endNode).toEqual({
+        type: 'block_indent_end'
       })
     })
   })

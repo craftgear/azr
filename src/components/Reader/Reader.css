@@ -287,6 +287,20 @@ ruby rt {
   transition: none;
 }
 
+/* 高速ナビゲーション中のページ内容を暗くする */
+.reader.fast-navigating .page-content-wrapper {
+  opacity: 0.3;
+  filter: brightness(0.5);
+  transition: opacity 0.1s ease-out, filter 0.1s ease-out;
+}
+
+/* 通常時は完全に表示 */
+.reader:not(.fast-navigating) .page-content-wrapper {
+  opacity: 1;
+  filter: brightness(1);
+  transition: opacity 0.2s ease-in, filter 0.2s ease-in;
+}
+
 /* 横書きモードのページ */
 .reader-horizontal .page {
   flex-direction: column;

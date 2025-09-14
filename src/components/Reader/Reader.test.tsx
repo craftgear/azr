@@ -586,4 +586,132 @@ describe('Reader', () => {
       expect(renderedContent.length).toBeLessThanOrEqual(3)
     })
   })
+
+  // 高速ナビゲーション時の視覚的フィードバック テスト
+  describe('fast navigation visual feedback', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    const createMultiPageDocument = (): ParsedAozoraDocument => ({
+      nodes: Array.from({ length: 100 }, (_, i) => ({
+        type: 'text',
+        content: `ページ${Math.floor(i / 10) + 1}のテキスト行${i + 1}。これは長いテキストです。`.repeat(3)
+      })),
+      metadata: {}
+    })
+
+    it('should add fast-navigating class during rapid keyboard navigation', () => {
+      const doc = createMultiPageDocument()
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={true} />
+      )
+
+      const reader = container.querySelector('.reader') as HTMLElement
+
+      // 高速ナビゲーション開始
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+
+      // fast-navigating クラスが追加される
+      expect(reader.classList.contains('fast-navigating')).toBe(true)
+    })
+
+    it('should add fast-navigating class during rapid wheel navigation', () => {
+      const doc = createMultiPageDocument()
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={true} />
+      )
+
+      const reader = container.querySelector('.reader') as HTMLElement
+
+      // 高速ホイールナビゲーション
+      fireEvent.wheel(reader, { deltaY: 100 })
+
+      // fast-navigating クラスが追加される
+      expect(reader.classList.contains('fast-navigating')).toBe(true)
+    })
+
+    it('should remove fast-navigating class after navigation settles', () => {
+      const doc = createMultiPageDocument()
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={true} />
+      )
+
+      const reader = container.querySelector('.reader') as HTMLElement
+
+      // 高速ナビゲーション開始
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      expect(reader.classList.contains('fast-navigating')).toBe(true)
+
+      // 50ms後にナビゲーション完了 (少し余裕を持って70ms)
+      vi.advanceTimersByTime(70)
+
+      // fast-navigating クラスが削除される
+      expect(reader.classList.contains('fast-navigating')).toBe(false)
+    })
+
+    it('should maintain fast-navigating class during continuous navigation', () => {
+      const doc = createMultiPageDocument()
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={true} />
+      )
+
+      const reader = container.querySelector('.reader') as HTMLElement
+
+      // 連続ナビゲーション
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      expect(reader.classList.contains('fast-navigating')).toBe(true)
+
+      vi.advanceTimersByTime(25) // まだ50ms経過前
+
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      expect(reader.classList.contains('fast-navigating')).toBe(true)
+
+      vi.advanceTimersByTime(25) // 合計50ms経過前
+
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      expect(reader.classList.contains('fast-navigating')).toBe(true)
+
+      // 最後のナビゲーションから50ms後 (少し余裕を持って70ms)
+      vi.advanceTimersByTime(70)
+      expect(reader.classList.contains('fast-navigating')).toBe(false)
+    })
+
+    it('should not add fast-navigating class when fastNavigationMode is disabled', () => {
+      const doc = createMultiPageDocument()
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={false} />
+      )
+
+      const reader = container.querySelector('.reader') as HTMLElement
+
+      // ナビゲーション実行
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+
+      // fastNavigationMode=false なのでクラスが追加されない
+      expect(reader.classList.contains('fast-navigating')).toBe(false)
+    })
+
+    it('should show dimmed page content during fast navigation', () => {
+      const doc = createMultiPageDocument()
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={true} />
+      )
+
+      const reader = container.querySelector('.reader') as HTMLElement
+
+      // 高速ナビゲーション開始
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+
+      // fast-navigating クラスが追加されてページが暗くなる
+      expect(reader.classList.contains('fast-navigating')).toBe(true)
+
+      const pageContent = container.querySelector('.page-current .page-content-wrapper')
+      expect(pageContent).toBeDefined()
+    })
+  })
 })

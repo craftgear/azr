@@ -216,21 +216,12 @@ export const Reader: React.FC<ReaderProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [verticalMode, fontSize, lineHeight, smoothScroll, currentPageIndex, targetPageIndex, pages.length, fastNavigationMode])
 
-  // マウスホイールでのページナビゲーション (デバウンスなし - 即座に反応)
+  // マウスホイールでのページナビゲーション (即座に反応)
   useEffect(() => {
     if (!enableWheelNavigation || !readerRef.current) return
 
-    let lastWheelTime = 0
-    const throttleDelay = 50 // 50ms スロットリング (デバウンスから変更)
-
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault()
-
-      const now = performance.now()
-      if (now - lastWheelTime < throttleDelay) {
-        return // スロットリング: 50ms以内の連続イベントを無視
-      }
-      lastWheelTime = now
 
       const deltaY = e.deltaY
 

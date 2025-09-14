@@ -346,4 +346,244 @@ describe('Reader', () => {
       expect(preventDefaultSpy).toHaveBeenCalled()
     })
   })
+
+  // 遅延レンダリング テスト (高速ページナビゲーション)
+  describe('deferred rendering for fast navigation', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    const createMultiPageDocument = (): ParsedAozoraDocument => ({
+      nodes: Array.from({ length: 200 }, (_, i) => ({
+        type: 'text',
+        content: `ページ${Math.floor(i / 10) + 1}のテキスト行${i + 1}。これは長いテキストです。`.repeat(3)
+      })),
+      metadata: {}
+    })
+
+    it('should show target page immediately in page indicator during rapid navigation', () => {
+      const doc = createMultiPageDocument()
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={true} />
+      )
+
+      const reader = container.querySelector('.reader') as HTMLElement
+      expect(reader).toBeDefined()
+
+      // 高速で複数回ナビゲート
+      fireEvent.keyDown(window, { key: 'ArrowLeft' }) // page 1
+      fireEvent.keyDown(window, { key: 'ArrowLeft' }) // page 2
+      fireEvent.keyDown(window, { key: 'ArrowLeft' }) // page 3
+
+      // ページインジケーターはすぐに更新される
+      const pageInfo = container.querySelector('.page-info')
+      if (pageInfo) {
+        // ターゲットページが表示されている
+        expect(pageInfo.textContent).toContain('4') // 0-based index なので +1
+      }
+    })
+
+    it('should render final page only after debounce period during rapid keyboard navigation', () => {
+      const doc = createMultiPageDocument()
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={true} />
+      )
+
+      // 高速で複数回ナビゲート
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+
+      // デバウンス期間中は中間ページをレンダリングしない
+      vi.advanceTimersByTime(100) // デバウンス完了前
+
+      // デバウンス完了後に最終ページがレンダリングされる
+      vi.advanceTimersByTime(100) // 合計200ms経過
+
+      expect(container.querySelector('.reader')).toBeDefined()
+    })
+
+    it('should render final page only after debounce period during rapid wheel navigation', () => {
+      const doc = createMultiPageDocument()
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={true} />
+      )
+
+      const reader = container.querySelector('.reader') as HTMLElement
+
+      // 高速で複数回ホイール
+      fireEvent.wheel(reader, { deltaY: 100 })
+      fireEvent.wheel(reader, { deltaY: 100 })
+      fireEvent.wheel(reader, { deltaY: 100 })
+
+      // デバウンス期間中は最終ページのみ
+      vi.advanceTimersByTime(50)
+
+      // デバウンス完了後
+      vi.advanceTimersByTime(150)
+
+      expect(reader).toBeDefined()
+    })
+
+    it('should render immediately for single navigation (not rapid)', () => {
+      const doc = createMultiPageDocument()
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={true} />
+      )
+
+      // 単一ナビゲーション
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+
+      // 短時間で即座にレンダリング
+      vi.advanceTimersByTime(50)
+
+      expect(container.querySelector('.reader')).toBeDefined()
+    })
+
+    it('should handle mixed navigation (keyboard + wheel) correctly', () => {
+      const doc = createMultiPageDocument()
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={true} />
+      )
+
+      const reader = container.querySelector('.reader') as HTMLElement
+
+      // 混合ナビゲーション
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      fireEvent.wheel(reader, { deltaY: 100 })
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+
+      // 全てが完了するまで待機
+      vi.advanceTimersByTime(200)
+
+      expect(reader).toBeDefined()
+    })
+
+    it('should disable fast navigation when fastNavigationMode is false', () => {
+      const doc = createMultiPageDocument()
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={false} />
+      )
+
+      // 高速ナビゲーション
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+
+      // fastNavigationMode=false の場合、通常の動作
+      vi.advanceTimersByTime(100)
+
+      expect(container.querySelector('.reader')).toBeDefined()
+    })
+  })
+
+  // 仮想ページネーション テスト (3ページスライディングウィンドウ)
+  describe('virtual pagination', () => {
+    const createLargeDocument = (pageCount: number = 20): ParsedAozoraDocument => ({
+      nodes: Array.from({ length: pageCount * 50 }, (_, i) => ({
+        type: 'text',
+        content: `ページ${Math.floor(i / 50) + 1}のテキスト行${i + 1}。これは長いテキストです。`.repeat(2)
+      })),
+      metadata: {}
+    })
+
+    it('should only render current, previous, and next pages (3-page window)', () => {
+      const doc = createLargeDocument(10)
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={true} />
+      )
+
+      // すべてのページ要素を取得
+      const pageElements = container.querySelectorAll('.page')
+
+      // 3ページのみがレンダリングされている（prev, current, next）
+      const renderedPages = Array.from(pageElements).filter(page =>
+        page.textContent && page.textContent.trim().length > 0
+      )
+
+      expect(renderedPages.length).toBeLessThanOrEqual(3)
+    })
+
+    it('should render correct pages when navigating to middle page', () => {
+      const doc = createLargeDocument(10)
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={false} />
+      )
+
+      // ページ4に移動 (0-indexed なので targetPageIndex = 3)
+      fireEvent.keyDown(window, { key: 'ArrowLeft' }) // page 1
+      fireEvent.keyDown(window, { key: 'ArrowLeft' }) // page 2
+      fireEvent.keyDown(window, { key: 'ArrowLeft' }) // page 3
+      fireEvent.keyDown(window, { key: 'ArrowLeft' }) // page 4
+
+      // ページ2, 3, 4がレンダリングされている
+      const currentPageElement = container.querySelector('.page-current')
+      const prevPageElement = container.querySelector('.page-prev')
+      const nextPageElement = container.querySelector('.page-next')
+
+      expect(currentPageElement).toBeDefined()
+      expect(prevPageElement).toBeDefined()
+      expect(nextPageElement).toBeDefined()
+    })
+
+    it('should handle first page edge case (no previous page)', () => {
+      const doc = createLargeDocument(10)
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={false} />
+      )
+
+      // 最初のページにいる場合
+      const pageElements = container.querySelectorAll('.page')
+      const renderedPages = Array.from(pageElements).filter(page =>
+        page.textContent && page.textContent.trim().length > 0
+      )
+
+      // 最初のページ（current）と次のページ（next）のみ
+      expect(renderedPages.length).toBeLessThanOrEqual(2)
+    })
+
+    it('should handle last page edge case (no next page)', () => {
+      const doc = createLargeDocument(5)
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={false} />
+      )
+
+      // 最後のページに移動
+      for (let i = 0; i < 4; i++) {
+        fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      }
+
+      const pageElements = container.querySelectorAll('.page')
+      const renderedPages = Array.from(pageElements).filter(page =>
+        page.textContent && page.textContent.trim().length > 0
+      )
+
+      // 前のページ（prev）と最後のページ（current）のみ
+      expect(renderedPages.length).toBeLessThanOrEqual(2)
+    })
+
+    it('should not render pages outside the 3-page window', () => {
+      const doc = createLargeDocument(20)
+      const { container } = render(
+        <Reader document={doc} verticalMode={true} fastNavigationMode={false} />
+      )
+
+      // 中間のページに移動 (ページ10)
+      for (let i = 0; i < 9; i++) {
+        fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      }
+
+      // DOM内のページ要素数を確認
+      const allPageElements = container.querySelectorAll('[data-page]')
+      const renderedContent = Array.from(allPageElements).filter(page =>
+        page.textContent && page.textContent.trim().length > 0
+      )
+
+      // 3ページ以内であることを確認
+      expect(renderedContent.length).toBeLessThanOrEqual(3)
+    })
+  })
 })

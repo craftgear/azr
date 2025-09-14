@@ -282,6 +282,11 @@ ruby rt {
   pointer-events: none;
 }
 
+/* 高速ナビゲーション中は遷移を無効化 */
+.reader.fast-navigating .page {
+  transition: none;
+}
+
 /* 横書きモードのページ */
 .reader-horizontal .page {
   flex-direction: column;

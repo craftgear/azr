@@ -316,175 +316,66 @@ export const forceSplitLine = (line: Line, charactersPerLine: number): Line[] =>
     return [line]
   }
 
+  // シンプルな文字数ベースの分割
+  const text = line.text
   const segments: Line[] = []
-  let nodeIndex = 0
-  
-  while (nodeIndex < line.nodes.length) {
+  let position = 0
+
+  while (position < text.length) {
+    let endPos = Math.min(position + charactersPerLine, text.length)
+
+    // 句点特別ルール: charactersPerLineちょうどで切れて次が句点の場合
+    if (endPos === position + charactersPerLine && endPos < text.length && text[endPos] === '。') {
+      endPos++ // 句点を含める
+    }
+
+    const segmentText = text.slice(position, endPos)
+
+    // ノードの再構築
     const segmentNodes: AozoraNode[] = []
-    let segmentText = ''
-    let segmentCharCount = 0
-    
-    // 各セグメントの構築
-    while (nodeIndex < line.nodes.length && segmentCharCount < charactersPerLine) {
-      const node = line.nodes[nodeIndex]
+    let accumulatedLength = 0
+    let nodeStartPos = 0
+
+    for (const node of line.nodes) {
       const nodeText = extractTextFromNode(node)
-      
-      // ルビノードの後に助詞が来るかチェック
-      if (node.type === 'ruby' && nodeIndex + 1 < line.nodes.length) {
-        const nextNode = line.nodes[nodeIndex + 1]
-        if (nextNode.type === 'text' && nextNode.content) {
-          const firstChar = nextNode.content[0]
-          if (PARTICLE_HEAD_CHARS.has(firstChar)) {
-            // ルビと助詞を一緒に処理
-            if (segmentCharCount + nodeText.length + 1 <= charactersPerLine) {
-              // 両方収まる場合
-              segmentNodes.push(node)
-              segmentText += nodeText
-              segmentCharCount += nodeText.length
-              nodeIndex++
-              
-              // 助詞を1文字追加
-              segmentNodes.push({ type: 'text', content: firstChar })
-              segmentText += firstChar
-              segmentCharCount += 1
-              
-              // 次のノードの残りを調整
-              if (nextNode.content.length > 1) {
-                line.nodes[nodeIndex] = {
-                  type: 'text',
-                  content: nextNode.content.slice(1)
-                }
-              } else {
-                nodeIndex++
-              }
-              continue
-            } else if (segmentCharCount > 0) {
-              // 収まらない場合は次の行へ
-              break
-            }
-          }
-        }
-      }
-      
-      // テキストノードで句点特別ルールのチェック
-      if (node.type === 'text' && node.content) {
-        // ノードのテキストがcharactersPerLineを超える場合
-        if (segmentCharCount + nodeText.length > charactersPerLine) {
-          const remainingChars = charactersPerLine - segmentCharCount
-          
-          // 句点特別ルール：ちょうどcharactersPerLineで切れて次が句点の場合
-          if (remainingChars > 0 && node.content.length > remainingChars) {
-            const cutPoint = remainingChars
-            if (node.content[cutPoint] === '。') {
-              // 句点を含めて取る
-              const partialContent = node.content.slice(0, cutPoint + 1)
-              segmentNodes.push({ type: 'text', content: partialContent })
-              segmentText += partialContent
-              segmentCharCount += partialContent.length
-              
-              // 残りを次のセグメント用に調整
-              if (cutPoint + 1 < node.content.length) {
-                line.nodes[nodeIndex] = {
-                  type: 'text',
-                  content: node.content.slice(cutPoint + 1)
-                }
-              } else {
-                nodeIndex++
-              }
-            } else {
-              // 通常の分割
-              const partialContent = node.content.slice(0, remainingChars)
-              segmentNodes.push({ type: 'text', content: partialContent })
-              segmentText += partialContent
-              segmentCharCount += partialContent.length
-              
-              line.nodes[nodeIndex] = {
-                type: 'text',
-                content: node.content.slice(remainingChars)
-              }
-            }
-          } else if (segmentCharCount === 0) {
-            // セグメントが空の場合、少なくとも一部を取る
-            const partialContent = node.content.slice(0, charactersPerLine)
+      const nodeEndPos = nodeStartPos + nodeText.length
+
+      // このノードがセグメントに関係するか
+      if (nodeEndPos > position && nodeStartPos < position + segmentText.length) {
+        if (node.type === 'text' && node.content) {
+          // テキストノードの部分的な切り出し
+          const startInNode = Math.max(0, position - nodeStartPos)
+          const endInNode = Math.min(nodeText.length, position + segmentText.length - nodeStartPos)
+          const partialContent = node.content.slice(startInNode, endInNode)
+
+          if (partialContent) {
             segmentNodes.push({ type: 'text', content: partialContent })
-            segmentText += partialContent
-            segmentCharCount += partialContent.length
-            
-            if (node.content.length > charactersPerLine) {
-              line.nodes[nodeIndex] = {
-                type: 'text',
-                content: node.content.slice(charactersPerLine)
-              }
-            } else {
-              nodeIndex++
-            }
-          } else {
-            // 次の行へ
-            break
           }
         } else {
-          // ノード全体が収まる場合
-          segmentNodes.push(node)
-          segmentText += nodeText
-          segmentCharCount += nodeText.length
-          nodeIndex++
-          
-          // 句点特別ルール：ちょうどcharactersPerLineで次のノードが句点で始まる場合
-          if (segmentCharCount === charactersPerLine && 
-              nodeIndex < line.nodes.length) {
-            const nextNode = line.nodes[nodeIndex]
-            if (nextNode.type === 'text' && nextNode.content && 
-                nextNode.content[0] === '。') {
-              segmentNodes.push({ type: 'text', content: '。' })
-              segmentText += '。'
-              segmentCharCount += 1
-              
-              if (nextNode.content.length > 1) {
-                line.nodes[nodeIndex] = {
-                  type: 'text',
-                  content: nextNode.content.slice(1)
-                }
-              } else {
-                nodeIndex++
-              }
-            }
+          // ルビなどの特殊ノードは、完全に含まれる場合のみ追加
+          if (nodeStartPos >= position && nodeEndPos <= position + segmentText.length) {
+            segmentNodes.push(node)
           }
-        }
-      } else {
-        // その他のノード（ルビなど）
-        if (segmentCharCount + nodeText.length <= charactersPerLine) {
-          segmentNodes.push(node)
-          segmentText += nodeText
-          segmentCharCount += nodeText.length
-          nodeIndex++
-        } else if (segmentCharCount === 0) {
-          // セグメントが空の場合はそのまま追加
-          segmentNodes.push(node)
-          segmentText += nodeText
-          segmentCharCount += nodeText.length
-          nodeIndex++
-        } else {
-          // 次の行へ
-          break
         }
       }
+
+      nodeStartPos = nodeEndPos
+      if (nodeStartPos >= position + segmentText.length) {
+        break
+      }
     }
-    
-    if (segmentNodes.length > 0) {
-      segments.push({
-        text: segmentText,
-        nodes: segmentNodes,
-        characterCount: countCharacters(segmentText),
-        normalizedCount: calculateNormalizedCount(segmentText, charactersPerLine)
-      })
-    }
+
+    segments.push({
+      text: segmentText,
+      nodes: segmentNodes.length > 0 ? segmentNodes : [{ type: 'text', content: segmentText }],
+      characterCount: countCharacters(segmentText),
+      normalizedCount: calculateNormalizedCount(segmentText, charactersPerLine)
+    })
+
+    position = endPos
   }
-  
-  if (segments.length <= 1) {
-    return [line]
-  }
-  
-  return segments
+
+  return segments.length > 0 ? segments : [line]
 }
 
 const divideVerticalLines = (
@@ -877,7 +768,13 @@ export const divideIntoIntelligentPages = (
     const charCount = countCharacters(lineText)
     
     // この行が占める行数を計算
-    const linesOccupied = Math.ceil(charCount / charactersPerLine)
+    // 句点特別ルール: 行末が句点で、ちょうど1文字オーバーの場合は1行とカウント
+    let linesOccupied: number
+    if (lineText.endsWith('。') && charCount === charactersPerLine + 1) {
+      linesOccupied = 1
+    } else {
+      linesOccupied = Math.ceil(charCount / charactersPerLine)
+    }
     
     if (linesOccupied <= remainingVisibleLines) {
       // 行が収まる場合

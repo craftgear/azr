@@ -317,7 +317,7 @@ describe('intelligentPageDivider', () => {
     })
     it('visibleLinesとcharactersPerLineでページ分割を行う', () => {
       const nodes: AozoraNode[] = [
-        { type: 'text', content: 'あいうえおかき。\nさしす。\nたちつてと。' }
+        { type: 'text', content: 'あいうえお。\nかきくけこさしすせそ。たちつてと。' }
       ]
       const capacity: CharacterCapacity = {
         totalCharacters: 15,
@@ -337,7 +337,7 @@ describe('intelligentPageDivider', () => {
       const pages = divideIntoIntelligentPages(nodes, capacity, false, options)
 
       expect(pages).toHaveLength(2)
-      expect(pages[0].lines.map(line => line.text)).toEqual(['あいうえお', 'かき。', 'さしす。'])
+      expect(pages[0].lines.map(line => line.text)).toEqual(['あいうえお。', 'かきくけこ', 'さしすせそ。'])
       expect(pages[1].lines.map(line => line.text)).toEqual(['たちつてと。'])
     })
 

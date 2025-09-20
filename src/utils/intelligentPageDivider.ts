@@ -5,7 +5,7 @@
 
 import type { AozoraNode } from '../types/aozora'
 import type { CharacterCapacity } from './readerCapacityCalculator'
-import { extractTextFromNode, splitIntoLines, type Page } from './pageDivider'
+import { extractTextFromNode, splitIntoLines, countCharacters, type Page, type Line } from './pageDivider'
 
 // セマンティック境界の種類と強度
 export type SemanticBoundary = {
@@ -37,6 +37,7 @@ export type IntelligentPageOptions = {
   enableContentAwareCapacity: boolean
   enableLookAhead: boolean
   enableLineBreaking?: boolean
+  useCapacityBasedWrapping?: boolean
   lookAheadWindow?: number
   penaltyWeights?: {
     midSentence: number
@@ -52,6 +53,511 @@ const DEFAULT_PENALTY_WEIGHTS = {
   midParagraph: 0.5,
   farFromTarget: 0.3,
   contentComplexity: 0.2
+}
+
+const SENTENCE_DELIMITERS = new Set(['。', '！', '？'])
+
+const PARTICLE_HEAD_CHARS = new Set(['の', 'は', 'が', 'を', 'に', 'で', 'と', 'も', 'へ'])
+
+const mergeVerticalSegments = (lines: Line[]): Line[] => {
+  if (lines.length <= 1) {
+    return lines
+  }
+
+  const merged: Line[] = []
+
+  const cloneLine = (line: Line): Line => ({
+    ...line,
+    nodes: [...line.nodes]
+  })
+
+  for (const line of lines) {
+    if (merged.length === 0) {
+      merged.push(cloneLine(line))
+      continue
+    }
+
+    const previous = merged[merged.length - 1]
+    const firstChar = line.text?.[0]
+
+    if (firstChar && PARTICLE_HEAD_CHARS.has(firstChar)) {
+      previous.nodes = [...previous.nodes, ...line.nodes]
+      previous.text = `${previous.text}${line.text}`
+      previous.characterCount = countCharacters(previous.text)
+      continue
+    }
+
+    merged.push(cloneLine(line))
+  }
+
+  return merged
+}
+
+export const calculateNormalizedCount = (text: string, charactersPerLine: number): number => {
+  if (charactersPerLine <= 0) {
+    return 0
+  }
+
+  const baseCount = countCharacters(text)
+  
+  // 特別ルール: 句点で終わる場合は句点も1文字として数える
+  // （0文字として扱わない）
+  const effectiveCount = baseCount
+  
+  if (effectiveCount <= 0) {
+    return 0
+  }
+
+  // 何行（縦書きなら列）を占めるか計算
+  const lines = Math.ceil(effectiveCount / charactersPerLine)
+  return lines
+}
+
+const createLineFromText = (text: string, charactersPerLine: number): Line => {
+  const node: AozoraNode = { type: 'text', content: text }
+  return {
+    nodes: [node],
+    text,
+    characterCount: countCharacters(text),
+    normalizedCount: calculateNormalizedCount(text, charactersPerLine)
+  }
+}
+
+const mergeContinuationPunctuation = (lines: Line[]): Line[] => {
+  const merged: Line[] = []
+
+  for (const line of lines) {
+    if (
+      merged.length > 0 &&
+      line.text === '。' &&
+      line.characterCount === 1
+    ) {
+      const previous = merged[merged.length - 1]
+      previous.nodes = [...previous.nodes, ...line.nodes]
+      previous.text += line.text
+      previous.characterCount += line.characterCount
+      previous.normalizedCount = 0
+      continue
+    }
+
+    merged.push(line)
+  }
+
+  return merged
+}
+
+export const splitLineBySentences = (line: Line): Line[] => {
+  if (!line.text || line.text.length === 0) {
+    return [line]
+  }
+
+  const segments: Line[] = []
+  const patterns = [
+    '。',
+    '」',
+    '』', 
+    '！',
+    '？',
+    '、'
+  ]
+
+  let currentNodes: AozoraNode[] = []
+  let currentText = ''
+  let nodeIndex = 0
+
+  while (nodeIndex < line.nodes.length) {
+    const node = line.nodes[nodeIndex]
+    const nodeText = extractTextFromNode(node)
+    
+    // ルビノードの後に助詞が来るかチェック
+    if (node.type === 'ruby' && nodeIndex + 1 < line.nodes.length) {
+      const nextNode = line.nodes[nodeIndex + 1]
+      if (nextNode.type === 'text' && nextNode.content) {
+        const firstChar = nextNode.content[0]
+        if (PARTICLE_HEAD_CHARS.has(firstChar)) {
+          // ルビと助詞を一緒に保持
+          currentNodes.push(node)
+          currentText += nodeText
+          nodeIndex++
+          
+          // 助詞を含む部分を処理
+          let particleEnd = 1
+          while (particleEnd < nextNode.content.length && 
+                 PARTICLE_HEAD_CHARS.has(nextNode.content[particleEnd])) {
+            particleEnd++
+          }
+          
+          const particlePart = nextNode.content.slice(0, particleEnd)
+          currentNodes.push({ type: 'text', content: particlePart })
+          currentText += particlePart
+          
+          // 残りの部分を処理
+          if (particleEnd < nextNode.content.length) {
+            const remaining = nextNode.content.slice(particleEnd)
+            
+            // 区切り文字をチェック
+            let foundPattern = false
+            for (const pattern of patterns) {
+              const idx = remaining.indexOf(pattern)
+              if (idx !== -1) {
+                // 区切り文字の前まで
+                if (idx > 0) {
+                  const beforePattern = remaining.slice(0, idx)
+                  currentNodes.push({ type: 'text', content: beforePattern })
+                  currentText += beforePattern
+                }
+                
+                // 区切り文字を含めて現在のセグメントを終了
+                currentNodes.push({ type: 'text', content: pattern })
+                currentText += pattern
+                
+                segments.push({
+                  text: currentText,
+                  nodes: currentNodes,
+                  characterCount: countCharacters(currentText),
+                  normalizedCount: 0
+                })
+                
+                currentNodes = []
+                currentText = ''
+                
+                // 残りを次のセグメントへ
+                if (idx + pattern.length < remaining.length) {
+                  const afterPattern = remaining.slice(idx + pattern.length)
+                  currentNodes.push({ type: 'text', content: afterPattern })
+                  currentText += afterPattern
+                }
+                
+                foundPattern = true
+                break
+              }
+            }
+            
+            if (!foundPattern) {
+              currentNodes.push({ type: 'text', content: remaining })
+              currentText += remaining
+            }
+          }
+          
+          nodeIndex++
+          continue
+        }
+      }
+    }
+    
+    // 通常のテキストノードの処理
+    if (node.type === 'text' && node.content) {
+      let remaining = node.content
+      let foundPattern = true
+      
+      while (foundPattern && remaining) {
+        foundPattern = false
+        for (const pattern of patterns) {
+          const idx = remaining.indexOf(pattern)
+          if (idx !== -1) {
+            // 区切り文字の前まで
+            if (idx > 0) {
+              const beforePattern = remaining.slice(0, idx)
+              currentNodes.push({ type: 'text', content: beforePattern })
+              currentText += beforePattern
+            }
+            
+            // 区切り文字を含めて現在のセグメントを終了
+            currentNodes.push({ type: 'text', content: pattern })
+            currentText += pattern
+            
+            segments.push({
+              text: currentText,
+              nodes: currentNodes,
+              characterCount: countCharacters(currentText),
+              normalizedCount: 0
+            })
+            
+            currentNodes = []
+            currentText = ''
+            
+            // 残りを処理
+            remaining = remaining.slice(idx + pattern.length)
+            foundPattern = true
+            break
+          }
+        }
+      }
+      
+      // 残りがある場合
+      if (remaining) {
+        currentNodes.push({ type: 'text', content: remaining })
+        currentText += remaining
+      }
+    } else {
+      // その他のノードはそのまま追加
+      currentNodes.push(node)
+      currentText += nodeText
+    }
+    
+    nodeIndex++
+  }
+
+  // 最後のセグメントを追加
+  if (currentNodes.length > 0) {
+    segments.push({
+      text: currentText,
+      nodes: currentNodes,
+      characterCount: countCharacters(currentText),
+      normalizedCount: 0
+    })
+  }
+
+  return segments.length > 0 ? segments : [line]
+}
+
+export const forceSplitLine = (line: Line, charactersPerLine: number): Line[] => {
+  if (charactersPerLine <= 0 || !line.text) {
+    return [line]
+  }
+
+  const segments: Line[] = []
+  let nodeIndex = 0
+  
+  while (nodeIndex < line.nodes.length) {
+    const segmentNodes: AozoraNode[] = []
+    let segmentText = ''
+    let segmentCharCount = 0
+    
+    // 各セグメントの構築
+    while (nodeIndex < line.nodes.length && segmentCharCount < charactersPerLine) {
+      const node = line.nodes[nodeIndex]
+      const nodeText = extractTextFromNode(node)
+      
+      // ルビノードの後に助詞が来るかチェック
+      if (node.type === 'ruby' && nodeIndex + 1 < line.nodes.length) {
+        const nextNode = line.nodes[nodeIndex + 1]
+        if (nextNode.type === 'text' && nextNode.content) {
+          const firstChar = nextNode.content[0]
+          if (PARTICLE_HEAD_CHARS.has(firstChar)) {
+            // ルビと助詞を一緒に処理
+            if (segmentCharCount + nodeText.length + 1 <= charactersPerLine) {
+              // 両方収まる場合
+              segmentNodes.push(node)
+              segmentText += nodeText
+              segmentCharCount += nodeText.length
+              nodeIndex++
+              
+              // 助詞を1文字追加
+              segmentNodes.push({ type: 'text', content: firstChar })
+              segmentText += firstChar
+              segmentCharCount += 1
+              
+              // 次のノードの残りを調整
+              if (nextNode.content.length > 1) {
+                line.nodes[nodeIndex] = {
+                  type: 'text',
+                  content: nextNode.content.slice(1)
+                }
+              } else {
+                nodeIndex++
+              }
+              continue
+            } else if (segmentCharCount > 0) {
+              // 収まらない場合は次の行へ
+              break
+            }
+          }
+        }
+      }
+      
+      // テキストノードで句点特別ルールのチェック
+      if (node.type === 'text' && node.content) {
+        // ノードのテキストがcharactersPerLineを超える場合
+        if (segmentCharCount + nodeText.length > charactersPerLine) {
+          const remainingChars = charactersPerLine - segmentCharCount
+          
+          // 句点特別ルール：ちょうどcharactersPerLineで切れて次が句点の場合
+          if (remainingChars > 0 && node.content.length > remainingChars) {
+            const cutPoint = remainingChars
+            if (node.content[cutPoint] === '。') {
+              // 句点を含めて取る
+              const partialContent = node.content.slice(0, cutPoint + 1)
+              segmentNodes.push({ type: 'text', content: partialContent })
+              segmentText += partialContent
+              segmentCharCount += partialContent.length
+              
+              // 残りを次のセグメント用に調整
+              if (cutPoint + 1 < node.content.length) {
+                line.nodes[nodeIndex] = {
+                  type: 'text',
+                  content: node.content.slice(cutPoint + 1)
+                }
+              } else {
+                nodeIndex++
+              }
+            } else {
+              // 通常の分割
+              const partialContent = node.content.slice(0, remainingChars)
+              segmentNodes.push({ type: 'text', content: partialContent })
+              segmentText += partialContent
+              segmentCharCount += partialContent.length
+              
+              line.nodes[nodeIndex] = {
+                type: 'text',
+                content: node.content.slice(remainingChars)
+              }
+            }
+          } else if (segmentCharCount === 0) {
+            // セグメントが空の場合、少なくとも一部を取る
+            const partialContent = node.content.slice(0, charactersPerLine)
+            segmentNodes.push({ type: 'text', content: partialContent })
+            segmentText += partialContent
+            segmentCharCount += partialContent.length
+            
+            if (node.content.length > charactersPerLine) {
+              line.nodes[nodeIndex] = {
+                type: 'text',
+                content: node.content.slice(charactersPerLine)
+              }
+            } else {
+              nodeIndex++
+            }
+          } else {
+            // 次の行へ
+            break
+          }
+        } else {
+          // ノード全体が収まる場合
+          segmentNodes.push(node)
+          segmentText += nodeText
+          segmentCharCount += nodeText.length
+          nodeIndex++
+          
+          // 句点特別ルール：ちょうどcharactersPerLineで次のノードが句点で始まる場合
+          if (segmentCharCount === charactersPerLine && 
+              nodeIndex < line.nodes.length) {
+            const nextNode = line.nodes[nodeIndex]
+            if (nextNode.type === 'text' && nextNode.content && 
+                nextNode.content[0] === '。') {
+              segmentNodes.push({ type: 'text', content: '。' })
+              segmentText += '。'
+              segmentCharCount += 1
+              
+              if (nextNode.content.length > 1) {
+                line.nodes[nodeIndex] = {
+                  type: 'text',
+                  content: nextNode.content.slice(1)
+                }
+              } else {
+                nodeIndex++
+              }
+            }
+          }
+        }
+      } else {
+        // その他のノード（ルビなど）
+        if (segmentCharCount + nodeText.length <= charactersPerLine) {
+          segmentNodes.push(node)
+          segmentText += nodeText
+          segmentCharCount += nodeText.length
+          nodeIndex++
+        } else if (segmentCharCount === 0) {
+          // セグメントが空の場合はそのまま追加
+          segmentNodes.push(node)
+          segmentText += nodeText
+          segmentCharCount += nodeText.length
+          nodeIndex++
+        } else {
+          // 次の行へ
+          break
+        }
+      }
+    }
+    
+    if (segmentNodes.length > 0) {
+      segments.push({
+        text: segmentText,
+        nodes: segmentNodes,
+        characterCount: countCharacters(segmentText),
+        normalizedCount: calculateNormalizedCount(segmentText, charactersPerLine)
+      })
+    }
+  }
+  
+  if (segments.length <= 1) {
+    return [line]
+  }
+  
+  return segments
+}
+
+const divideVerticalLines = (
+  lines: Line[],
+  effectiveCapacity: CharacterCapacity,
+  _options: IntelligentPageOptions,
+  verticalMode: boolean
+): Page[] => {
+  const rowsPerColumn = Math.max(1, verticalMode ? effectiveCapacity.rows : effectiveCapacity.charactersPerRow)
+  const pageCapacity = effectiveCapacity.totalCharacters
+  const pages: Page[] = []
+
+  lines.forEach(line => {
+    const charCount = line.characterCount
+    if (charCount === 0) {
+      line.normalizedCount = 0
+    } else if (charCount < rowsPerColumn) {
+      line.normalizedCount = rowsPerColumn
+    } else {
+      const columns = Math.ceil(charCount / rowsPerColumn)
+      line.normalizedCount = columns * rowsPerColumn
+    }
+  })
+
+  let currentPage: Page = {
+    lines: [],
+    totalCharacters: 0,
+    startIndex: 0,
+    endIndex: 0
+  }
+
+  let nodeIndex = 0
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const hasHeading = line.nodes.some(node =>
+      node.type === 'heading' || node.type === 'header'
+    )
+
+    if (hasHeading && currentPage.lines.length > 0) {
+      pages.push(currentPage)
+
+      currentPage = {
+        lines: [line],
+        totalCharacters: line.normalizedCount,
+        startIndex: nodeIndex,
+        endIndex: nodeIndex + line.nodes.length - 1
+      }
+    } else if (currentPage.totalCharacters + line.normalizedCount <= pageCapacity) {
+      currentPage.lines.push(line)
+      currentPage.totalCharacters += line.normalizedCount
+      currentPage.endIndex = nodeIndex + line.nodes.length - 1
+    } else {
+      if (currentPage.lines.length > 0) {
+        pages.push(currentPage)
+      }
+
+      currentPage = {
+        lines: [line],
+        totalCharacters: line.normalizedCount,
+        startIndex: nodeIndex,
+        endIndex: nodeIndex + line.nodes.length - 1
+      }
+    }
+
+    nodeIndex += line.nodes.length
+  }
+
+  if (currentPage.lines.length > 0) {
+    pages.push(currentPage)
+  }
+
+  return pages
 }
 
 /**
@@ -210,10 +716,11 @@ export const findOptimalBreakPoint = (
   targetPosition: number,
   _capacity: CharacterCapacity,
   options: IntelligentPageOptions = {
-    enableSemanticBoundaries: true,
-    enableContentAwareCapacity: true,
-    enableLookAhead: true,
-    enableLineBreaking: false
+    enableSemanticBoundaries: false,
+    enableContentAwareCapacity: false,
+    enableLookAhead: false,
+    enableLineBreaking: true,
+    useCapacityBasedWrapping: true
   }
 ): OptimalBreakPoint => {
   const penaltyWeights = { ...DEFAULT_PENALTY_WEIGHTS, ...options.penaltyWeights }
@@ -313,48 +820,45 @@ export const divideIntoIntelligentPages = (
   capacity: CharacterCapacity,
   verticalMode: boolean = true,
   options: IntelligentPageOptions = {
-    enableSemanticBoundaries: true,
-    enableContentAwareCapacity: true,
-    enableLookAhead: true,
-    enableLineBreaking: false
+    enableSemanticBoundaries: false,
+    enableContentAwareCapacity: false,
+    enableLookAhead: false,
+    enableLineBreaking: true,
+    useCapacityBasedWrapping: true
   }
 ): Page[] => {
-  const pages: Page[] = []
-
-  // コンテンツ複雑度を計算して容量を調整
   let effectiveCapacity = capacity
   if (options.enableContentAwareCapacity) {
     const complexity = calculateContentComplexity(nodes)
     effectiveCapacity = adjustCapacityForContent(capacity, complexity)
   }
 
-  // 行の最大文字数を計算（ページ容量の60%程度を目安）
-  const maxCharsPerLine = options.enableLineBreaking
-    ? Math.floor(effectiveCapacity.totalCharacters * 0.6)
-    : undefined
+  if (verticalMode) {
+    const shouldDisableLineBreaking = !options.enableLineBreaking
 
-  // 基本的な行分割を実行
-  const lines = splitIntoLines(nodes, maxCharsPerLine)
-  if (lines.length === 0) return []
+    const maxCharsPerLine = shouldDisableLineBreaking
+      ? undefined
+      : Math.max(1, Math.floor(effectiveCapacity.totalCharacters * 0.6))
 
-  // 縦書きと横書きで行数の定義が異なる
-  const rowsPerColumn = verticalMode ? effectiveCapacity.rows : effectiveCapacity.charactersPerRow
-  const pageCapacity = effectiveCapacity.totalCharacters
-
-  // 各行の正規化文字数を計算（既存のロジックを使用）
-  lines.forEach(line => {
-    const charCount = line.characterCount
-    if (charCount === 0) {
-      line.normalizedCount = 0
-    } else if (charCount < rowsPerColumn) {
-      line.normalizedCount = rowsPerColumn
-    } else {
-      const columns = Math.ceil(charCount / rowsPerColumn)
-      line.normalizedCount = columns * rowsPerColumn
+    const verticalLines = splitIntoLines(nodes, maxCharsPerLine)
+    const processedLines = maxCharsPerLine && maxCharsPerLine > 1
+      ? mergeVerticalSegments(verticalLines)
+      : verticalLines
+    if (verticalLines.length === 0) {
+      return []
     }
-  })
 
-  // ページに分割
+    return divideVerticalLines(processedLines, effectiveCapacity, options, true)
+  }
+
+  // 横書きモード用の新しいアルゴリズム
+  const charactersPerLine = Math.max(1, effectiveCapacity.charactersPerRow)
+  const visibleLines = Math.max(1, effectiveCapacity.rows)
+
+  const initialLines = splitIntoLines(nodes)
+  if (initialLines.length === 0) return []
+
+  const pages: Page[] = []
   let currentPage: Page = {
     lines: [],
     totalCharacters: 0,
@@ -363,51 +867,133 @@ export const divideIntoIntelligentPages = (
   }
 
   let nodeIndex = 0
+  let remainingVisibleLines = visibleLines
+  let lineQueue = [...initialLines]
+  let queueIndex = 0
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-
-    // 行が見出しタイプのノードを含むかチェック
-    const hasHeading = line.nodes.some(node =>
-      node.type === 'heading' || node.type === 'header'
-    )
-
-    // 見出しの場合、新しいページを開始（最初のページでない限り）
-    if (hasHeading && currentPage.lines.length > 0) {
-      pages.push(currentPage)
-
-      currentPage = {
-        lines: [line],
-        totalCharacters: line.normalizedCount,
-        startIndex: nodeIndex,
-        endIndex: nodeIndex + line.nodes.length - 1
-      }
-    } else if (currentPage.totalCharacters + line.normalizedCount <= pageCapacity) {
-      // 通常の行で、現在のページに収まる場合
-      currentPage.lines.push(line)
-      currentPage.totalCharacters += line.normalizedCount
-      currentPage.endIndex = nodeIndex + line.nodes.length - 1
-    } else {
-      // ページが満杯なので、新しいページを開始
-      if (currentPage.lines.length > 0) {
-        // インテリジェント改ページを試行
-        if (options.enableSemanticBoundaries || options.enableLookAhead) {
-          // 現在のページの最適化は今回は基本実装のみ
-          // 将来的にはここで改ページ位置の最適化を行う
+  while (queueIndex < lineQueue.length) {
+    const line = lineQueue[queueIndex]
+    const lineText = line.text
+    const charCount = countCharacters(lineText)
+    
+    // この行が占める行数を計算
+    const linesOccupied = Math.ceil(charCount / charactersPerLine)
+    
+    if (linesOccupied <= remainingVisibleLines) {
+      // 行が収まる場合
+      if (linesOccupied > 1 && options.useCapacityBasedWrapping) {
+        // 複数行にまたがる場合は分割して追加
+        const segments = forceSplitLine(line, charactersPerLine)
+        for (const segment of segments) {
+          if (currentPage.lines.length === 0) {
+            currentPage.startIndex = nodeIndex
+          }
+          currentPage.lines.push(segment)
+          currentPage.totalCharacters += countCharacters(segment.text)
         }
-
-        pages.push(currentPage)
+      } else {
+        // そのまま追加
+        if (currentPage.lines.length === 0) {
+          currentPage.startIndex = nodeIndex
+        }
+        currentPage.lines.push(line)
+        currentPage.totalCharacters += charCount
       }
-
-      currentPage = {
-        lines: [line],
-        totalCharacters: line.normalizedCount,
-        startIndex: nodeIndex,
-        endIndex: nodeIndex + line.nodes.length - 1
+      
+      currentPage.endIndex = nodeIndex + line.nodes.length - 1
+      remainingVisibleLines -= linesOccupied
+      nodeIndex += line.nodes.length
+      queueIndex++
+      
+      // ページが満杯になった場合
+      if (remainingVisibleLines <= 0 && queueIndex < lineQueue.length) {
+        pages.push(currentPage)
+        currentPage = {
+          lines: [],
+          totalCharacters: 0,
+          startIndex: nodeIndex,
+          endIndex: nodeIndex
+        }
+        remainingVisibleLines = visibleLines
+      }
+    } else {
+      // 行が収まらない場合
+      if (currentPage.lines.length === 0 && !options.useCapacityBasedWrapping) {
+        // ページが空で分割オプションが無効な場合は強制的に追加
+        currentPage.startIndex = nodeIndex
+        currentPage.lines.push(line)
+        currentPage.totalCharacters += charCount
+        currentPage.endIndex = nodeIndex + line.nodes.length - 1
+        nodeIndex += line.nodes.length
+        queueIndex++
+        
+        pages.push(currentPage)
+        currentPage = {
+          lines: [],
+          totalCharacters: 0,
+          startIndex: nodeIndex,
+          endIndex: nodeIndex
+        }
+        remainingVisibleLines = visibleLines
+      } else if (options.useCapacityBasedWrapping) {
+        // 文単位で分割を試みる
+        const sentenceSegments = splitLineBySentences(line)
+        
+        if (sentenceSegments.length > 1) {
+          // 文単位で分割できた場合、キューを更新
+          lineQueue.splice(queueIndex, 1, ...sentenceSegments)
+          continue
+        }
+        
+        // 文単位で分割できない場合、強制分割
+        const forcedSegments = forceSplitLine(line, charactersPerLine)
+        if (forcedSegments.length > 1) {
+          lineQueue.splice(queueIndex, 1, ...forcedSegments)
+          continue
+        }
+        
+        // それでも収まらない場合は次のページへ
+        if (currentPage.lines.length > 0) {
+          pages.push(currentPage)
+          currentPage = {
+            lines: [],
+            totalCharacters: 0,
+            startIndex: nodeIndex,
+            endIndex: nodeIndex
+          }
+          remainingVisibleLines = visibleLines
+        } else {
+          // 空のページに強制追加
+          currentPage.startIndex = nodeIndex
+          currentPage.lines.push(line)
+          currentPage.totalCharacters += charCount
+          currentPage.endIndex = nodeIndex + line.nodes.length - 1
+          nodeIndex += line.nodes.length
+          queueIndex++
+          
+          pages.push(currentPage)
+          currentPage = {
+            lines: [],
+            totalCharacters: 0,
+            startIndex: nodeIndex,
+            endIndex: nodeIndex
+          }
+          remainingVisibleLines = visibleLines
+        }
+      } else {
+        // 現在のページを終了して次のページへ
+        if (currentPage.lines.length > 0) {
+          pages.push(currentPage)
+          currentPage = {
+            lines: [],
+            totalCharacters: 0,
+            startIndex: nodeIndex,
+            endIndex: nodeIndex
+          }
+          remainingVisibleLines = visibleLines
+        }
       }
     }
-
-    nodeIndex += line.nodes.length
   }
 
   // 最後のページを追加

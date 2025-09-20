@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react'
+import { flushSync } from 'react-dom'
 import type { ParsedAozoraDocument, AozoraNode } from '../../types/aozora'
 import { calculateReaderCapacity } from '../../utils/readerCapacityCalculator'
 import { divideIntoIntelligentPages, type IntelligentPageOptions } from '../../utils/intelligentPageDivider'
@@ -46,18 +47,26 @@ export const Reader: React.FC<ReaderProps> = ({
   // intelligentPagingOptionsをメモ化して無限レンダリングを防ぐ
   const memoizedIntelligentOptions = useMemo(
     () => intelligentPagingOptions || {
-      enableSemanticBoundaries: true,
-      enableContentAwareCapacity: true,
-      enableLookAhead: true,
-      enableLineBreaking: true
+      enableSemanticBoundaries: false,
+      enableContentAwareCapacity: false,
+      enableLookAhead: false,
+      enableLineBreaking: true,
+      useCapacityBasedWrapping: true
     },
     [
       intelligentPagingOptions?.enableSemanticBoundaries,
       intelligentPagingOptions?.enableContentAwareCapacity,
       intelligentPagingOptions?.enableLookAhead,
-      intelligentPagingOptions?.enableLineBreaking
+      intelligentPagingOptions?.enableLineBreaking,
+      intelligentPagingOptions?.useCapacityBasedWrapping
     ]
   )
+
+  useEffect(() => {
+    if (fastNavigationMode && targetPageIndex === currentPageIndex && isNavigating) {
+      setIsNavigating(false)
+    }
+  }, [fastNavigationMode, targetPageIndex, currentPageIndex, isNavigating])
 
   // 遅延レンダリング: targetPageIndexをcurrentPageIndexに同期
   useEffect(() => {
@@ -70,8 +79,10 @@ export const Reader: React.FC<ReaderProps> = ({
     let syncTimer: number | null = null
 
     const syncPages = () => {
-      setCurrentPageIndex(targetPageIndex)
-      setIsNavigating(false)
+      flushSync(() => {
+        setCurrentPageIndex(targetPageIndex)
+        setIsNavigating(false)
+      })
     }
 
     if (targetPageIndex !== currentPageIndex) {

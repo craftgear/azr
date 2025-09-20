@@ -1,7 +1,26 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { Reader } from './Reader'
 import type { ParsedAozoraDocument } from '../../types/aozora'
+import type { IntelligentPageOptions } from '../../utils/intelligentPageDivider'
+
+const actKeyDown = (target: Document | Window | Element, init: KeyboardEventInit) => {
+  act(() => {
+    fireEvent.keyDown(target, init)
+  })
+}
+
+const actWheel = (target: Element, init: WheelEventInit) => {
+  act(() => {
+    fireEvent.wheel(target, init)
+  })
+}
+
+const advanceTimers = (ms: number) => {
+  act(() => {
+    vi.advanceTimersByTime(ms)
+  })
+}
 
 describe('Reader', () => {
   it('should show empty state when no document', () => {
@@ -194,7 +213,14 @@ describe('Reader', () => {
         ],
         metadata: {}
       }
-      const { container } = render(<Reader document={doc} verticalMode={false} />)
+      const intelligentPagingOptions: IntelligentPageOptions = {
+        enableSemanticBoundaries: true,
+        enableContentAwareCapacity: false,
+        enableLookAhead: false,
+        enableLineBreaking: false,
+        useCapacityBasedWrapping: false
+      }
+      const { container } = render(<Reader document={doc} verticalMode={false} intelligentPagingOptions={intelligentPagingOptions} />)
       expect(container.textContent).toContain('…')
       expect(container.textContent).toContain('‥')
       expect(container.textContent).toContain('...')
@@ -232,8 +258,8 @@ describe('Reader', () => {
       expect(reader).toBeDefined()
 
       // 初期ページは0
-      fireEvent.wheel(reader, { deltaY: 100 })
-      vi.advanceTimersByTime(150)
+      actWheel(reader, { deltaY: 100 })
+      advanceTimers(150)
 
       // ページが進んだことを確認（具体的な検証は実装に依存）
       expect(reader).toBeDefined()
@@ -249,12 +275,12 @@ describe('Reader', () => {
       expect(reader).toBeDefined()
 
       // まず次のページに移動
-      fireEvent.wheel(reader, { deltaY: 100 })
-      vi.advanceTimersByTime(150)
+      actWheel(reader, { deltaY: 100 })
+      advanceTimers(150)
 
       // 前のページに戻る
-      fireEvent.wheel(reader, { deltaY: -100 })
-      vi.advanceTimersByTime(150)
+      actWheel(reader, { deltaY: -100 })
+      advanceTimers(150)
 
       expect(reader).toBeDefined()
     })
@@ -269,12 +295,12 @@ describe('Reader', () => {
       expect(reader).toBeDefined()
 
       // まず次のページに移動
-      fireEvent.wheel(reader, { deltaY: 100 })
-      vi.advanceTimersByTime(150)
+      actWheel(reader, { deltaY: 100 })
+      advanceTimers(150)
 
       // 前のページに戻る（横書きモードでは上方向で前のページ）
-      fireEvent.wheel(reader, { deltaY: -100 })
-      vi.advanceTimersByTime(150)
+      actWheel(reader, { deltaY: -100 })
+      advanceTimers(150)
 
       expect(reader).toBeDefined()
     })
@@ -288,8 +314,8 @@ describe('Reader', () => {
       const reader = container.querySelector('.reader') as HTMLElement
       expect(reader).toBeDefined()
 
-      fireEvent.wheel(reader, { deltaY: 100 })
-      vi.advanceTimersByTime(150)
+      actWheel(reader, { deltaY: 100 })
+      advanceTimers(150)
 
       expect(reader).toBeDefined()
     })
@@ -303,8 +329,8 @@ describe('Reader', () => {
       const reader = container.querySelector('.reader') as HTMLElement
       expect(reader).toBeDefined()
 
-      fireEvent.wheel(reader, { deltaY: 100 })
-      vi.advanceTimersByTime(150)
+      actWheel(reader, { deltaY: 100 })
+      advanceTimers(150)
 
       // ページナビゲーションが無効なので、何も起こらない
       expect(reader).toBeDefined()
@@ -320,12 +346,12 @@ describe('Reader', () => {
       expect(reader).toBeDefined()
 
       // 短時間で複数のホイールイベントを発生させる
-      fireEvent.wheel(reader, { deltaY: 100 })
-      fireEvent.wheel(reader, { deltaY: 100 })
-      fireEvent.wheel(reader, { deltaY: 100 })
+      actWheel(reader, { deltaY: 100 })
+      actWheel(reader, { deltaY: 100 })
+      actWheel(reader, { deltaY: 100 })
 
       // デバウンス期間中は一回のページナビゲーションのみ
-      vi.advanceTimersByTime(50)
+      advanceTimers(50)
       expect(reader).toBeDefined()
     })
 
@@ -341,7 +367,9 @@ describe('Reader', () => {
       const wheelEvent = new WheelEvent('wheel', { deltaY: 100 })
       const preventDefaultSpy = vi.spyOn(wheelEvent, 'preventDefault')
 
-      fireEvent(reader, wheelEvent)
+      act(() => {
+        fireEvent(reader, wheelEvent)
+      })
 
       expect(preventDefaultSpy).toHaveBeenCalled()
     })
@@ -375,9 +403,9 @@ describe('Reader', () => {
       expect(reader).toBeDefined()
 
       // 高速で複数回ナビゲート
-      fireEvent.keyDown(window, { key: 'ArrowLeft' }) // page 1
-      fireEvent.keyDown(window, { key: 'ArrowLeft' }) // page 2
-      fireEvent.keyDown(window, { key: 'ArrowLeft' }) // page 3
+      actKeyDown(window, { key: 'ArrowLeft' }) // page 1
+      actKeyDown(window, { key: 'ArrowLeft' }) // page 2
+      actKeyDown(window, { key: 'ArrowLeft' }) // page 3
 
       // ページインジケーターはすぐに更新される
       const pageInfo = container.querySelector('.page-info')
@@ -394,15 +422,15 @@ describe('Reader', () => {
       )
 
       // 高速で複数回ナビゲート
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      actKeyDown(window, { key: 'ArrowLeft' })
+      actKeyDown(window, { key: 'ArrowLeft' })
+      actKeyDown(window, { key: 'ArrowLeft' })
 
       // デバウンス期間中は中間ページをレンダリングしない
-      vi.advanceTimersByTime(100) // デバウンス完了前
+      advanceTimers(100) // デバウンス完了前
 
       // デバウンス完了後に最終ページがレンダリングされる
-      vi.advanceTimersByTime(100) // 合計200ms経過
+      advanceTimers(100) // 合計200ms経過
 
       expect(container.querySelector('.reader')).toBeDefined()
     })
@@ -416,15 +444,15 @@ describe('Reader', () => {
       const reader = container.querySelector('.reader') as HTMLElement
 
       // 高速で複数回ホイール
-      fireEvent.wheel(reader, { deltaY: 100 })
-      fireEvent.wheel(reader, { deltaY: 100 })
-      fireEvent.wheel(reader, { deltaY: 100 })
+      actWheel(reader, { deltaY: 100 })
+      actWheel(reader, { deltaY: 100 })
+      actWheel(reader, { deltaY: 100 })
 
       // デバウンス期間中は最終ページのみ
-      vi.advanceTimersByTime(50)
+      advanceTimers(50)
 
       // デバウンス完了後
-      vi.advanceTimersByTime(150)
+      advanceTimers(150)
 
       expect(reader).toBeDefined()
     })
@@ -436,10 +464,10 @@ describe('Reader', () => {
       )
 
       // 単一ナビゲーション
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      actKeyDown(window, { key: 'ArrowLeft' })
 
       // 短時間で即座にレンダリング
-      vi.advanceTimersByTime(50)
+      advanceTimers(50)
 
       expect(container.querySelector('.reader')).toBeDefined()
     })
@@ -453,12 +481,12 @@ describe('Reader', () => {
       const reader = container.querySelector('.reader') as HTMLElement
 
       // 混合ナビゲーション
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
-      fireEvent.wheel(reader, { deltaY: 100 })
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      actKeyDown(window, { key: 'ArrowLeft' })
+      actWheel(reader, { deltaY: 100 })
+      actKeyDown(window, { key: 'ArrowLeft' })
 
       // 全てが完了するまで待機
-      vi.advanceTimersByTime(200)
+      advanceTimers(200)
 
       expect(reader).toBeDefined()
     })
@@ -470,11 +498,11 @@ describe('Reader', () => {
       )
 
       // 高速ナビゲーション
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      actKeyDown(window, { key: 'ArrowLeft' })
+      actKeyDown(window, { key: 'ArrowLeft' })
 
       // fastNavigationMode=false の場合、通常の動作
-      vi.advanceTimersByTime(100)
+      advanceTimers(100)
 
       expect(container.querySelector('.reader')).toBeDefined()
     })
@@ -514,10 +542,10 @@ describe('Reader', () => {
       )
 
       // ページ4に移動 (0-indexed なので targetPageIndex = 3)
-      fireEvent.keyDown(window, { key: 'ArrowLeft' }) // page 1
-      fireEvent.keyDown(window, { key: 'ArrowLeft' }) // page 2
-      fireEvent.keyDown(window, { key: 'ArrowLeft' }) // page 3
-      fireEvent.keyDown(window, { key: 'ArrowLeft' }) // page 4
+      actKeyDown(window, { key: 'ArrowLeft' }) // page 1
+      actKeyDown(window, { key: 'ArrowLeft' }) // page 2
+      actKeyDown(window, { key: 'ArrowLeft' }) // page 3
+      actKeyDown(window, { key: 'ArrowLeft' }) // page 4
 
       // ページ2, 3, 4がレンダリングされている
       const currentPageElement = container.querySelector('.page-current')
@@ -553,7 +581,7 @@ describe('Reader', () => {
 
       // 最後のページに移動
       for (let i = 0; i < 4; i++) {
-        fireEvent.keyDown(window, { key: 'ArrowLeft' })
+        actKeyDown(window, { key: 'ArrowLeft' })
       }
 
       const pageElements = container.querySelectorAll('.page')
@@ -573,7 +601,7 @@ describe('Reader', () => {
 
       // 中間のページに移動 (ページ10)
       for (let i = 0; i < 9; i++) {
-        fireEvent.keyDown(window, { key: 'ArrowLeft' })
+        actKeyDown(window, { key: 'ArrowLeft' })
       }
 
       // DOM内のページ要素数を確認
@@ -614,7 +642,7 @@ describe('Reader', () => {
       const reader = container.querySelector('.reader') as HTMLElement
 
       // 高速ナビゲーション開始
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      actKeyDown(window, { key: 'ArrowLeft' })
 
       // fast-navigating クラスが追加される
       expect(reader.classList.contains('fast-navigating')).toBe(true)
@@ -629,7 +657,7 @@ describe('Reader', () => {
       const reader = container.querySelector('.reader') as HTMLElement
 
       // 高速ホイールナビゲーション
-      fireEvent.wheel(reader, { deltaY: 100 })
+      actWheel(reader, { deltaY: 100 })
 
       // fast-navigating クラスが追加される
       expect(reader.classList.contains('fast-navigating')).toBe(true)
@@ -644,11 +672,11 @@ describe('Reader', () => {
       const reader = container.querySelector('.reader') as HTMLElement
 
       // 高速ナビゲーション開始
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      actKeyDown(window, { key: 'ArrowLeft' })
       expect(reader.classList.contains('fast-navigating')).toBe(true)
 
       // 50ms後にナビゲーション完了 (少し余裕を持って70ms)
-      vi.advanceTimersByTime(70)
+      advanceTimers(70)
 
       // fast-navigating クラスが削除される
       expect(reader.classList.contains('fast-navigating')).toBe(false)
@@ -663,21 +691,21 @@ describe('Reader', () => {
       const reader = container.querySelector('.reader') as HTMLElement
 
       // 連続ナビゲーション
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      actKeyDown(window, { key: 'ArrowLeft' })
       expect(reader.classList.contains('fast-navigating')).toBe(true)
 
-      vi.advanceTimersByTime(25) // まだ50ms経過前
+      advanceTimers(25) // まだ50ms経過前
 
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      actKeyDown(window, { key: 'ArrowLeft' })
       expect(reader.classList.contains('fast-navigating')).toBe(true)
 
-      vi.advanceTimersByTime(25) // 合計50ms経過前
+      advanceTimers(25) // 合計50ms経過前
 
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      actKeyDown(window, { key: 'ArrowLeft' })
       expect(reader.classList.contains('fast-navigating')).toBe(true)
 
       // 最後のナビゲーションから50ms後 (少し余裕を持って70ms)
-      vi.advanceTimersByTime(70)
+      advanceTimers(70)
       expect(reader.classList.contains('fast-navigating')).toBe(false)
     })
 
@@ -690,7 +718,7 @@ describe('Reader', () => {
       const reader = container.querySelector('.reader') as HTMLElement
 
       // ナビゲーション実行
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      actKeyDown(window, { key: 'ArrowLeft' })
 
       // fastNavigationMode=false なのでクラスが追加されない
       expect(reader.classList.contains('fast-navigating')).toBe(false)
@@ -705,7 +733,7 @@ describe('Reader', () => {
       const reader = container.querySelector('.reader') as HTMLElement
 
       // 高速ナビゲーション開始
-      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      actKeyDown(window, { key: 'ArrowLeft' })
 
       // fast-navigating クラスが追加されてページが暗くなる
       expect(reader.classList.contains('fast-navigating')).toBe(true)

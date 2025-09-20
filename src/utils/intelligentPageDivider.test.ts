@@ -141,8 +141,15 @@ describe('intelligentPageDivider', () => {
       ]
       const capacity = createCapacity(20, 10)
       const targetPosition = 15
+      const options: IntelligentPageOptions = {
+        enableSemanticBoundaries: true,
+        enableContentAwareCapacity: true,
+        enableLookAhead: true,
+        enableLineBreaking: false,
+        useCapacityBasedWrapping: false
+      }
 
-      const breakPoint = findOptimalBreakPoint(nodes, targetPosition, capacity)
+      const breakPoint = findOptimalBreakPoint(nodes, targetPosition, capacity, options)
 
       // 文末（。の後）の位置に改ページするはず
       expect([6, 12, 18]).toContain(breakPoint.position)
@@ -171,8 +178,15 @@ describe('intelligentPageDivider', () => {
       ]
       const capacity = createCapacity(25, 10)
       const targetPosition = 9 // 段落境界に近い位置
+      const options: IntelligentPageOptions = {
+        enableSemanticBoundaries: true,
+        enableContentAwareCapacity: true,
+        enableLookAhead: true,
+        enableLineBreaking: false,
+        useCapacityBasedWrapping: false
+      }
 
-      const breakPoint = findOptimalBreakPoint(nodes, targetPosition, capacity)
+      const breakPoint = findOptimalBreakPoint(nodes, targetPosition, capacity, options)
 
       // 段落境界または文境界が選ばれるはず
       expect(['paragraph', 'sentence']).toContain(breakPoint.reason)
@@ -301,6 +315,158 @@ describe('intelligentPageDivider', () => {
       expect(pages.length).toBeGreaterThan(0)
       // 基本的な分割が実行されることを確認
     })
+    it('visibleLinesとcharactersPerLineでページ分割を行う', () => {
+      const nodes: AozoraNode[] = [
+        { type: 'text', content: 'あいうえおかき。\nさしす。\nたちつてと。' }
+      ]
+      const capacity: CharacterCapacity = {
+        totalCharacters: 15,
+        rows: 3,
+        cols: 5,
+        charactersPerRow: 5,
+        charactersPerColumn: 3
+      }
+      const options: IntelligentPageOptions = {
+        enableSemanticBoundaries: false,
+        enableContentAwareCapacity: false,
+        enableLookAhead: false,
+        enableLineBreaking: true,
+        useCapacityBasedWrapping: true
+      }
+
+      const pages = divideIntoIntelligentPages(nodes, capacity, false, options)
+
+      expect(pages).toHaveLength(2)
+      expect(pages[0].lines.map(line => line.text)).toEqual(['あいうえお', 'かき。', 'さしす。'])
+      expect(pages[1].lines.map(line => line.text)).toEqual(['たちつてと。'])
+    })
+
+    it('新しいアルゴリズムで正しくページ分割を行う（句点の特別ルール適用）', () => {
+      const nodes: AozoraNode[] = [
+        { type: 'text', content: 'あいうえおかき。' },
+        { type: 'text', content: '\n' },
+        { type: 'text', content: 'さしす。' },
+        { type: 'text', content: '\n' },
+        { type: 'text', content: 'たちつてと。' }
+      ]
+      const capacity: CharacterCapacity = {
+        totalCharacters: 15,
+        rows: 3,
+        cols: 5,
+        charactersPerRow: 5,
+        charactersPerColumn: 3
+      }
+      const options: IntelligentPageOptions = {
+        enableSemanticBoundaries: false,
+        enableContentAwareCapacity: false,
+        enableLookAhead: false,
+        enableLineBreaking: true,
+        useCapacityBasedWrapping: true
+      }
+
+      const pages = divideIntoIntelligentPages(nodes, capacity, false, options)
+
+      expect(pages).toHaveLength(2)
+      // Page 1: あいうえお / かき。 / さしす。
+      expect(pages[0].lines.map(line => line.text)).toEqual(['あいうえお', 'かき。', 'さしす。'])
+      // Page 2: たちつてと。
+      expect(pages[1].lines.map(line => line.text)).toEqual(['たちつてと。'])
+    })
+
+    it('ルビテキストと助詞が分離しないことを確認', () => {
+      const nodes: AozoraNode[] = [
+        { type: 'text', content: '伊達むつの守、かねがね不作法の儀、上聞に達し、不届におぼしめさる、よってまず' },
+        { type: 'ruby', base: '逼塞', reading: 'ひっそく' },
+        { type: 'text', content: 'まかりあるべく、' },
+        { type: 'ruby', base: '跡式', reading: 'あとしき' },
+        { type: 'text', content: 'の儀はかさねて仰せいださるべし' }
+      ]
+      const capacity: CharacterCapacity = {
+        totalCharacters: 100,
+        rows: 5,
+        cols: 20,
+        charactersPerRow: 20,
+        charactersPerColumn: 5
+      }
+      const options: IntelligentPageOptions = {
+        enableSemanticBoundaries: false,
+        enableContentAwareCapacity: false,
+        enableLookAhead: false,
+        enableLineBreaking: true,
+        useCapacityBasedWrapping: true
+      }
+
+      const pages = divideIntoIntelligentPages(nodes, capacity, false, options)
+
+      // デバッグ用: ページと行の内容を確認
+      console.log('Pages:', pages.length)
+      pages.forEach((page, pi) => {
+        console.log(`Page ${pi + 1}:`)
+        page.lines.forEach((line, li) => {
+          console.log(`  Line ${li + 1}: "${line.text}"`)
+          console.log(`    Nodes:`, line.nodes.map(n =>
+            n.type === 'ruby' ? `ruby(${n.base}/${n.reading})` : `text("${n.content}")`
+          ))
+        })
+      })
+
+      // ルビテキストと助詞「の」が分離していないことを確認
+      let rubyLineIndex = -1
+      let particleLineIndex = -1
+
+      pages.forEach((page, pageIndex) => {
+        page.lines.forEach((line, lineIndex) => {
+          // 跡式のルビがある行を探す
+          if (line.nodes.some(n => n.type === 'ruby' && n.base === '跡式')) {
+            rubyLineIndex = lineIndex
+          }
+          // 「の儀」で始まる行を探す
+          if (line.text.startsWith('の儀')) {
+            particleLineIndex = lineIndex
+            // ルビの直後の行に助詞がある場合、分離している
+            fail(`Ruby text and particle are separated! Ruby at line ${rubyLineIndex}, particle at line ${particleLineIndex}`)
+          }
+        })
+      })
+
+      // ルビと助詞が同じ行にあることを確認
+      const hasRubyWithParticleInSameLine = pages.some(page =>
+        page.lines.some(line => {
+          const hasRuby = line.nodes.some(n => n.type === 'ruby' && n.base === '跡式')
+          const hasParticle = line.nodes.some(n => n.type === 'text' && n.content?.includes('の'))
+          return hasRuby && hasParticle
+        })
+      )
+
+      expect(hasRubyWithParticleInSameLine).toBe(true)
+    })
+
+    it('縦書きの小さな見出しでルビと助詞が分離しない', () => {
+      const nodes: AozoraNode[] = [
+        { type: 'ruby', base: '跡式', reading: 'あとしき' },
+        { type: 'text', content: 'の儀は' }
+      ]
+      const capacity: CharacterCapacity = {
+        totalCharacters: 4,
+        rows: 2,
+        cols: 2,
+        charactersPerRow: 2,
+        charactersPerColumn: 2
+      }
+      const options: IntelligentPageOptions = {
+        enableSemanticBoundaries: false,
+        enableContentAwareCapacity: false,
+        enableLookAhead: false,
+        enableLineBreaking: true,
+        useCapacityBasedWrapping: true
+      }
+
+      const pages = divideIntoIntelligentPages(nodes, capacity, true, options)
+
+      const firstPageLines = pages[0].lines.map(line => line.text)
+      expect(firstPageLines.some(text => text.includes('跡式の'))).toBe(true)
+    })
+
   })
 
   describe('統合テスト', () => {

@@ -55,7 +55,7 @@ const DEFAULT_PENALTY_WEIGHTS = {
   contentComplexity: 0.2
 }
 
-const SENTENCE_DELIMITERS = new Set(['。', '！', '？'])
+// const SENTENCE_DELIMITERS = new Set(['。', '！', '？'])
 
 const PARTICLE_HEAD_CHARS = new Set(['の', 'は', 'が', 'を', 'に', 'で', 'と', 'も', 'へ'])
 
@@ -113,38 +113,38 @@ export const calculateNormalizedCount = (text: string, charactersPerLine: number
   return lines
 }
 
-const createLineFromText = (text: string, charactersPerLine: number): Line => {
-  const node: AozoraNode = { type: 'text', content: text }
-  return {
-    nodes: [node],
-    text,
-    characterCount: countCharacters(text),
-    normalizedCount: calculateNormalizedCount(text, charactersPerLine)
-  }
-}
+// const createLineFromText = (text: string, charactersPerLine: number): Line => {
+//   const node: AozoraNode = { type: 'text', content: text }
+//   return {
+//     nodes: [node],
+//     text,
+//     characterCount: countCharacters(text),
+//     normalizedCount: calculateNormalizedCount(text, charactersPerLine)
+//   }
+// }
 
-const mergeContinuationPunctuation = (lines: Line[]): Line[] => {
-  const merged: Line[] = []
-
-  for (const line of lines) {
-    if (
-      merged.length > 0 &&
-      line.text === '。' &&
-      line.characterCount === 1
-    ) {
-      const previous = merged[merged.length - 1]
-      previous.nodes = [...previous.nodes, ...line.nodes]
-      previous.text += line.text
-      previous.characterCount += line.characterCount
-      previous.normalizedCount = 0
-      continue
-    }
-
-    merged.push(line)
-  }
-
-  return merged
-}
+// const mergeContinuationPunctuation = (lines: Line[]): Line[] => {
+//   const merged: Line[] = []
+//
+//   for (const line of lines) {
+//     if (
+//       merged.length > 0 &&
+//       line.text === '。' &&
+//       line.characterCount === 1
+//     ) {
+//       const previous = merged[merged.length - 1]
+//       previous.nodes = [...previous.nodes, ...line.nodes]
+//       previous.text += line.text
+//       previous.characterCount += line.characterCount
+//       previous.normalizedCount = 0
+//       continue
+//     }
+//
+//     merged.push(line)
+//   }
+//
+//   return merged
+// }
 
 export const splitLineBySentences = (line: Line): Line[] => {
   if (!line.text || line.text.length === 0) {
@@ -333,7 +333,7 @@ export const forceSplitLine = (line: Line, charactersPerLine: number): Line[] =>
 
     // ノードの再構築
     const segmentNodes: AozoraNode[] = []
-    let accumulatedLength = 0
+    // let accumulatedLength = 0
     let nodeStartPos = 0
 
     for (const node of line.nodes) {

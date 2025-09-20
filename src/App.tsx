@@ -19,11 +19,11 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isLibraryOpen, setIsLibraryOpen] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
-  const [settings, setSettings] = useState<ReaderSettings>(() => 
+  const [settings, setSettings] = useState<ReaderSettings>(() =>
     settingsStorage.loadSettings()
   )
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
-  const headerTimeoutRef = useRef<NodeJS.Timeout | undefined>()
+  const headerTimeoutRef = useRef<NodeJS.Timeout | undefined>(null)
 
   // 設定の変更を保存
   useEffect(() => {
@@ -33,12 +33,12 @@ const App: React.FC = () => {
   // ヘッダーの自動非表示機能
   const showHeader = useCallback(() => {
     setIsHeaderVisible(true)
-    
+
     // 既存のタイマーをクリア
     if (headerTimeoutRef.current) {
       clearTimeout(headerTimeoutRef.current)
     }
-    
+
     // 1秒後に非表示にする（ドキュメントが開いている場合のみ）
     if (document) {
       headerTimeoutRef.current = setTimeout(() => {
@@ -57,14 +57,14 @@ const App: React.FC = () => {
     }
 
     window.addEventListener('mousemove', handleMouseMove)
-    
+
     // 初期表示後、1秒で非表示
     if (document) {
       headerTimeoutRef.current = setTimeout(() => {
         setIsHeaderVisible(false)
       }, 1000)
     }
-    
+
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
       if (headerTimeoutRef.current) {
@@ -127,7 +127,7 @@ const App: React.FC = () => {
     try {
       const text = await readTextFile(file)
       const parsedDocument = parseAozoraText(text)
-      
+
       setDocument(parsedDocument)
 
       // ドキュメントからタイトルを抽出

@@ -11,9 +11,9 @@ import {
   getCharacterStats,
   chunkJapaneseText,
   joinChunks,
-  type ChunkOptions,
-  type TextChunk,
-  type CharacterStats
+  // type ChunkOptions,
+  type TextChunk
+  // type CharacterStats
 } from './textUtils'
 
 describe('textUtils', () => {
@@ -471,8 +471,8 @@ describe('textUtils', () => {
       // オーバーラップの検証
       if (chunks.length > 1) {
         // 隣接するチャンクで重複部分があることを確認
-        const firstChunkEnd = chunks[0].content.slice(-5)
-        const secondChunkStart = chunks[1].content.slice(0, 5)
+        // const firstChunkEnd = chunks[0].content.slice(-5)
+        // const secondChunkStart = chunks[1].content.slice(0, 5)
         // 部分的な重複があることを確認（完全一致ではない場合もある）
         expect(chunks[1].startIndex).toBeLessThan(chunks[0].endIndex)
       }

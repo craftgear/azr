@@ -65,7 +65,7 @@ export const formatDocumentToHTML = (
 }
 
 // Reactコンポーネント用のフォーマット関数
-export const formatNodeToReact = (node: AozoraNode, index: number): React.ReactElement | string | null => {
+export const formatNodeToReact = (_node: AozoraNode, _index: number): React.ReactElement | string | null => {
   // この関数はReactコンポーネント内で実装される
   // ここではプレースホルダーとして定義
   throw new Error('formatNodeToReact should be implemented in React component')

@@ -120,7 +120,6 @@ describe('Reader', () => {
     render(
       <Reader
         document={doc}
-        intelligentPaging={true}
         intelligentPagingOptions={{
           enableSemanticBoundaries: true,
           enableContentAwareCapacity: false,
@@ -145,7 +144,6 @@ describe('Reader', () => {
     render(
       <Reader
         document={doc}
-        intelligentPaging={true}
       />
     )
 

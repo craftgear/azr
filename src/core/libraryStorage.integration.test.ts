@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { libraryStorage } from './libraryStorage'
 import type { ParsedAozoraDocument } from '../types/aozora'
-import type { LibraryBook } from '../types/library'
+// import type { LibraryBook } from '../types/library'
 
 // Fake IndexedDB for testing
 import 'fake-indexeddb/auto'
@@ -13,7 +13,7 @@ describe('LibraryStorage Integration Tests', () => {
       { type: 'text', content: '本文の内容' },
       { type: 'text', content: title ? `底本：「${title}」新潮文庫` : 'テキスト' }
     ],
-    metadata: title ? { title } : undefined
+    metadata: title ? { title } : {}
   })
 
   beforeEach(async () => {
@@ -67,7 +67,8 @@ describe('LibraryStorage Integration Tests', () => {
 
     it('should handle books without title', async () => {
       const doc: ParsedAozoraDocument = {
-        nodes: [{ type: 'text', content: '本文のみ' }]
+        nodes: [{ type: 'text', content: '本文のみ' }],
+        metadata: {}
       }
       
       const bookId = await libraryStorage.addBook(doc)
@@ -144,7 +145,8 @@ describe('LibraryStorage Integration Tests', () => {
 
     it('should handle undefined titles in filter', async () => {
       const doc: ParsedAozoraDocument = {
-        nodes: [{ type: 'text', content: 'コンテンツ' }]
+        nodes: [{ type: 'text', content: 'コンテンツ' }],
+        metadata: {}
       }
       await libraryStorage.addBook(doc)
       await libraryStorage.addBook(createSampleDocument('タイトルあり'))
@@ -174,7 +176,8 @@ describe('LibraryStorage Integration Tests', () => {
 
     it('should handle sorting with undefined titles', async () => {
       const docNoTitle: ParsedAozoraDocument = {
-        nodes: [{ type: 'text', content: 'no title' }]
+        nodes: [{ type: 'text', content: 'no title' }],
+        metadata: {}
       }
       
       await libraryStorage.addBook(docNoTitle)
@@ -275,7 +278,8 @@ describe('LibraryStorage Integration Tests', () => {
       const doc: ParsedAozoraDocument = {
         nodes: [
           { type: 'text', content: '底本：「もみの木は残った（上）」新潮文庫' }
-        ]
+        ],
+        metadata: {}
       }
       
       const bookId = await libraryStorage.addBook(doc)
@@ -288,7 +292,8 @@ describe('LibraryStorage Integration Tests', () => {
       const doc: ParsedAozoraDocument = {
         nodes: [
           { type: 'text', content: '底本：「作品集（完全版）」出版社' }
-        ]
+        ],
+        metadata: {}
       }
       
       const bookId = await libraryStorage.addBook(doc)
@@ -329,7 +334,8 @@ describe('LibraryStorage Integration Tests', () => {
 
     it('should handle large documents', async () => {
       const largeDoc: ParsedAozoraDocument = {
-        nodes: []
+        nodes: [],
+        metadata: {}
       }
       
       // 大きなドキュメントを作成

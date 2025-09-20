@@ -72,7 +72,7 @@ describe('lineBreaker', () => {
       expect(afterOpenQuote).toBeUndefined()
 
       // 」の直前に改行候補がないことを確認（近い位置）
-      const nearCloseQuote = candidates.filter(c => Math.abs(c.position - 16) <= 1)
+      // const nearCloseQuote = candidates.filter(c => Math.abs(c.position - 16) <= 1)
       // 厳密な位置チェックは実装詳細に依存するので、存在しないことだけ確認
     })
   })
@@ -293,7 +293,7 @@ describe('lineBreaker', () => {
       // 「で終わる行がないことを確認（可能な限り）
       result.forEach(line => {
         if (line.text.length > 0) {
-          const lastChar = line.text[line.text.length - 1]
+          // const lastChar = line.text[line.text.length - 1]
           // 完全に避けられない場合もあるが、努力されていることを確認
           // これは実装依存なので、基本的な動作確認のみ
         }

@@ -405,7 +405,7 @@ describe('intelligentPageDivider', () => {
         page.lines.forEach((line, li) => {
           console.log(`  Line ${li + 1}: "${line.text}"`)
           console.log(`    Nodes:`, line.nodes.map(n =>
-            n.type === 'ruby' ? `ruby(${n.base}/${n.reading})` : `text("${n.content}")`
+            n.type === 'ruby' ? `ruby(${n.base}/${n.reading})` : 'content' in n ? `text("${n.content}")` : `${n.type}()`
           ))
         })
       })
@@ -414,7 +414,7 @@ describe('intelligentPageDivider', () => {
       let rubyLineIndex = -1
       let particleLineIndex = -1
 
-      pages.forEach((page, pageIndex) => {
+      pages.forEach((page, _pageIndex) => {
         page.lines.forEach((line, lineIndex) => {
           // 跡式のルビがある行を探す
           if (line.nodes.some(n => n.type === 'ruby' && n.base === '跡式')) {
@@ -424,7 +424,7 @@ describe('intelligentPageDivider', () => {
           if (line.text.startsWith('の儀')) {
             particleLineIndex = lineIndex
             // ルビの直後の行に助詞がある場合、分離している
-            fail(`Ruby text and particle are separated! Ruby at line ${rubyLineIndex}, particle at line ${particleLineIndex}`)
+            throw new Error(`Ruby text and particle are separated! Ruby at line ${rubyLineIndex}, particle at line ${particleLineIndex}`)
           }
         })
       })

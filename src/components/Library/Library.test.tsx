@@ -23,7 +23,8 @@ describe('Library', () => {
       document: {
         nodes: [
           { type: 'text', content: '底本：「吾輩は猫である」新潮文庫' }
-        ]
+        ],
+        metadata: {}
       },
       metadata: {
         title: '吾輩は猫である',
@@ -43,10 +44,11 @@ describe('Library', () => {
       document: {
         nodes: [
           { type: 'text', content: 'テキスト' }
-        ]
+        ],
+        metadata: {}
       },
       metadata: {
-        title: undefined, // タイトルなしのケース
+        title: '', // タイトルなしのケース
         author: undefined,
         addedDate: new Date('2024-01-02'),
         thumbnail: undefined
@@ -172,7 +174,7 @@ describe('Library', () => {
       },
       {
         ...mockBooks[1],
-        metadata: { ...mockBooks[1].metadata, title: undefined }
+        metadata: { ...mockBooks[1].metadata, title: '' }
       },
       {
         ...mockBooks[0],

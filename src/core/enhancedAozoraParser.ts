@@ -1,11 +1,6 @@
-import type { 
-  AozoraNode, 
-  ParsedAozoraDocument,
-  TextSize,
-  BlockIndent,
-  EmphasisDots,
-  Heading,
-  SpecialCharNote 
+import type {
+  AozoraNode,
+  ParsedAozoraDocument
 } from '../types/aozora'
 
 import { isSentenceEnd } from '../utils/textUtils'

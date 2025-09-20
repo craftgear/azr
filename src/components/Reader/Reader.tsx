@@ -156,60 +156,60 @@ export const Reader: React.FC<ReaderProps> = ({
   }, [targetPageIndex, currentPageIndex, fastNavigationMode])
 
   useEffect(() => {
-    const _animateScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 200) => {
-      const start = element[direction === 'left' ? 'scrollLeft' : 'scrollTop']
-      const startTime = performance.now()
-
-      const animate = (currentTime: number) => {
-        const elapsed = currentTime - startTime
-        const progress = Math.min(elapsed / duration, 1)
-
-        // Adjustable strength easing (0.35 = 35% easing strength)
-        const strength = 0.35
-        const cubicProgress = progress < 0.5
-          ? 4 * progress * progress * progress
-          : 1 - Math.pow(-2 * progress + 2, 3) / 2
-        const easeProgress = progress + (cubicProgress - progress) * strength
-
-        const currentPosition = start + (distance * easeProgress)
-
-        if (direction === 'left') {
-          element.scrollLeft = currentPosition
-        } else {
-          element.scrollTop = currentPosition
-        }
-
-        if (progress < 1) {
-          requestAnimationFrame(animate)
-        }
-      }
-
-      requestAnimationFrame(animate)
-    }
+    // const animateScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 200) => {
+    //   const start = element[direction === 'left' ? 'scrollLeft' : 'scrollTop']
+    //   const startTime = performance.now()
+    //
+    //   const animate = (currentTime: number) => {
+    //     const elapsed = currentTime - startTime
+    //     const progress = Math.min(elapsed / duration, 1)
+    //
+    //     // Adjustable strength easing (0.35 = 35% easing strength)
+    //     const strength = 0.35
+    //     const cubicProgress = progress < 0.5
+    //       ? 4 * progress * progress * progress
+    //       : 1 - Math.pow(-2 * progress + 2, 3) / 2
+    //     const easeProgress = progress + (cubicProgress - progress) * strength
+    //
+    //     const currentPosition = start + (distance * easeProgress)
+    //
+    //     if (direction === 'left') {
+    //       element.scrollLeft = currentPosition
+    //     } else {
+    //       element.scrollTop = currentPosition
+    //     }
+    //
+    //     if (progress < 1) {
+    //       requestAnimationFrame(animate)
+    //     }
+    //   }
+    //
+    //   requestAnimationFrame(animate)
+    // }
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!readerRef.current) return
 
-      const element = readerRef.current
-      const computedStyle = window.getComputedStyle(element)
+      // const element = readerRef.current
+      // const computedStyle = window.getComputedStyle(element)
 
       // 実際のフォントサイズとline-heightを取得
-      const actualFontSize = parseFloat(computedStyle.fontSize)
-      const actualLineHeight = parseFloat(computedStyle.lineHeight) || actualFontSize * lineHeight
+      // const actualFontSize = parseFloat(computedStyle.fontSize)
+      // const actualLineHeight = parseFloat(computedStyle.lineHeight) || actualFontSize * lineHeight
 
       // パディングを考慮した実際の表示エリアサイズ
-      const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0
-      const paddingRight = parseFloat(computedStyle.paddingRight) || 0
-      const paddingTop = parseFloat(computedStyle.paddingTop) || 0
-      const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
+      // const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0
+      // const paddingRight = parseFloat(computedStyle.paddingRight) || 0
+      // const paddingTop = parseFloat(computedStyle.paddingTop) || 0
+      // const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
 
-      const visibleWidth = element.clientWidth - paddingLeft - paddingRight
-      const visibleHeight = element.clientHeight - paddingTop - paddingBottom
+      // const visibleWidth = element.clientWidth - paddingLeft - paddingRight
+      // const visibleHeight = element.clientHeight - paddingTop - paddingBottom
 
       if (verticalMode) {
         // 縦書きモード: 列幅で表示列数を計算
-        const colWidth = actualLineHeight
-        const cols = Math.floor(visibleWidth / colWidth)
+        // const colWidth = actualLineHeight
+        // const cols = Math.floor(visibleWidth / colWidth)
         // const scrollAmount = cols * colWidth // 表示列数分スクロール（未使用）
 
         // 左右キーでページ移動（縦書きは右から左へ読む）
@@ -240,8 +240,8 @@ export const Reader: React.FC<ReaderProps> = ({
         }
       } else {
         // 横書きモード: 行高で表示行数を計算
-        const rowHeight = actualLineHeight
-        const rows = Math.floor(visibleHeight / rowHeight)
+        // const rowHeight = actualLineHeight
+        // const rows = Math.floor(visibleHeight / rowHeight)
         // const scrollAmount = rows * rowHeight // 表示行数分スクロール（未使用）
 
         // 上下キーでページ移動
@@ -496,7 +496,11 @@ export const Reader: React.FC<ReaderProps> = ({
         }
 
         if (parts.length === 1) {
-          return processTextPart(parts[0])
+          const result = processTextPart(parts[0])
+          if (Array.isArray(result)) {
+            return <React.Fragment key={index}>{result}</React.Fragment>
+          }
+          return result
         }
 
         return (

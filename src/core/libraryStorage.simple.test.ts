@@ -11,7 +11,8 @@ describe('LibraryStorage Unit Tests', () => {
         nodes: [
           { type: 'text', content: '本文' },
           { type: 'text', content: '底本：「吾輩は猫である」新潮文庫' }
-        ]
+        ],
+        metadata: {}
       }
 
       expect(extractTitle(doc)).toBe('吾輩は猫である')
@@ -21,7 +22,8 @@ describe('LibraryStorage Unit Tests', () => {
       const doc: ParsedAozoraDocument = {
         nodes: [
           { type: 'text', content: '底本：「作品名（上巻）」出版社' }
-        ]
+        ],
+        metadata: {}
       }
 
       expect(extractTitle(doc)).toBe('作品名（上巻）')
@@ -31,7 +33,8 @@ describe('LibraryStorage Unit Tests', () => {
       const doc: ParsedAozoraDocument = {
         nodes: [
           { type: 'text', content: '底本：「日本文学（完全版）」' }
-        ]
+        ],
+        metadata: {}
       }
 
       expect(extractTitle(doc)).toBe('日本文学（完全版）')
@@ -54,7 +57,8 @@ describe('LibraryStorage Unit Tests', () => {
       const doc: ParsedAozoraDocument = {
         nodes: [
           { type: 'text', content: '本文のみ' }
-        ]
+        ],
+        metadata: {}
       }
 
       expect(extractTitle(doc)).toBeUndefined()
@@ -66,7 +70,8 @@ describe('LibraryStorage Unit Tests', () => {
           { type: 'text', content: '底本：「間違ったタイトル」' },
           { type: 'text', content: '他のテキスト' },
           { type: 'text', content: '底本：「正しいタイトル」出版社' }
-        ]
+        ],
+        metadata: {}
       }
 
       expect(extractTitle(doc)).toBe('正しいタイトル')
@@ -191,7 +196,8 @@ describe('LibraryStorage Unit Tests', () => {
         nodes: [
           { type: 'text', content: '12345' },
           { type: 'text', content: '67890' }
-        ]
+        ],
+        metadata: {}
       }
 
       expect(calculateTotalLength(doc)).toBe(10)
@@ -202,7 +208,8 @@ describe('LibraryStorage Unit Tests', () => {
         nodes: [
           { type: 'ruby', base: '漢字', reading: 'かんじ' },
           { type: 'text', content: 'テキスト' }
-        ]
+        ],
+        metadata: {}
       }
 
       expect(calculateTotalLength(doc)).toBe(6) // '漢字' + 'テキスト'
@@ -211,9 +218,10 @@ describe('LibraryStorage Unit Tests', () => {
     it('should handle emphasis dots nodes', () => {
       const doc: ParsedAozoraDocument = {
         nodes: [
-          { type: 'emphasis_dots', text: '強調' },
+          { type: 'emphasis_dots', content: '強調', text: '強調' },
           { type: 'text', content: '通常' }
-        ]
+        ],
+        metadata: {}
       }
 
       expect(calculateTotalLength(doc)).toBe(4) // '強調' + '通常'
@@ -238,7 +246,8 @@ describe('LibraryStorage Unit Tests', () => {
           { type: 'text', content: 'これは最初のテキストです。' },
           { type: 'ruby', base: '漢字', reading: 'かんじ' },
           { type: 'text', content: 'これは二番目のテキストです。' }
-        ]
+        ],
+        metadata: {}
       }
 
       const thumbnail = generateThumbnail(doc)
@@ -249,7 +258,8 @@ describe('LibraryStorage Unit Tests', () => {
       const doc: ParsedAozoraDocument = {
         nodes: [
           { type: 'text', content: 'あ'.repeat(150) }
-        ]
+        ],
+        metadata: {}
       }
 
       const thumbnail = generateThumbnail(doc)
@@ -258,7 +268,8 @@ describe('LibraryStorage Unit Tests', () => {
 
     it('should handle empty document', () => {
       const doc: ParsedAozoraDocument = {
-        nodes: []
+        nodes: [],
+        metadata: {}
       }
 
       const thumbnail = generateThumbnail(doc)

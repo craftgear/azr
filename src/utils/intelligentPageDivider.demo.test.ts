@@ -125,7 +125,7 @@ describe('Intelligent Paging Demo', () => {
 
     // コンテンツの複雑度に応じてページング結果が異なることを示す
     const complexTotalText = complexNodes.map(n => n.type === 'text' ? n.content : n.type === 'ruby' ? n.base : n.type === 'emphasis_dots' ? n.text : '').join('')
-    const simpleTotalText = simpleNodes.map(n => n.content).join('')
+    const simpleTotalText = simpleNodes.map(n => 'content' in n ? n.content : '').join('')
 
     console.log(`Complex text length: ${complexTotalText.length}`)
     console.log(`Simple text length: ${simpleTotalText.length}`)

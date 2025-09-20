@@ -25,7 +25,8 @@ describe('タイトル抽出', () => {
       nodes: [
         { type: 'heading', content: '吾輩は猫である', level: 'large' },
         { type: 'text', content: '夏目漱石' }
-      ]
+      ],
+      metadata: {}
     }
     
     expect(extractTitle(doc)).toBeUndefined()
@@ -36,7 +37,8 @@ describe('タイトル抽出', () => {
       nodes: [
         { type: 'text', content: '本文がここにある' },
         { type: 'text', content: '底本：「吾輩は猫である」新潮文庫、新潮社' }
-      ]
+      ],
+      metadata: {}
     }
     
     expect(extractTitle(doc)).toBe('吾輩は猫である')
@@ -47,7 +49,8 @@ describe('タイトル抽出', () => {
       nodes: [
         { type: 'text', content: '本文' },
         { type: 'text', content: '底本：「もみの木は残った（上）」新潮文庫' }
-      ]
+      ],
+      metadata: {}
     }
     
     expect(extractTitle(doc)).toBe('もみの木は残った')
@@ -58,7 +61,8 @@ describe('タイトル抽出', () => {
       nodes: [
         { type: 'text', content: '本文' },
         { type: 'text', content: '底本：「作品集（完全版）」出版社' }
-      ]
+      ],
+      metadata: {}
     }
     
     expect(extractTitle(doc)).toBe('作品集')
@@ -69,7 +73,8 @@ describe('タイトル抽出', () => {
       nodes: [
         { type: 'heading', content: '見出しタイトル', level: 'large' },
         { type: 'text', content: '底本：「正しいタイトル」出版社' }
-      ]
+      ],
+      metadata: {}
     }
     
     expect(extractTitle(doc)).toBe('正しいタイトル')
@@ -94,7 +99,8 @@ describe('タイトル抽出', () => {
         { type: 'text', content: '底本：「間違ったタイトル」' },
         { type: 'text', content: '本文' },
         { type: 'text', content: '底本：「正しいタイトル」出版社' }
-      ]
+      ],
+      metadata: {}
     }
     
     expect(extractTitle(doc)).toBe('正しいタイトル')
@@ -118,7 +124,8 @@ describe('タイトル抽出', () => {
     const doc: ParsedAozoraDocument = {
       nodes: [
         { type: 'text', content: '本文のみ' }
-      ]
+      ],
+      metadata: {}
     }
     
     expect(extractTitle(doc)).toBeUndefined()
@@ -131,7 +138,8 @@ describe('タイトル抽出', () => {
         { type: 'text', content: `底本：「こころ」新潮文庫、新潮社
 　　　1969（昭和44）年4月15日発行
 　　　1989（平成元）年6月5日85刷改版` }
-      ]
+      ],
+      metadata: {}
     }
     
     expect(extractTitle(doc)).toBe('こころ')

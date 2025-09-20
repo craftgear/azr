@@ -58,7 +58,7 @@ export const getReaderDimensions = (element: HTMLElement): ReaderDimensions => {
  */
 export const calculateVerticalCapacity = (
   dimensions: ReaderDimensions,
-  charWidthRatio: number = JAPANESE_CHAR_WIDTH_RATIO
+  _charWidthRatio: number = JAPANESE_CHAR_WIDTH_RATIO
 ): CharacterCapacity => {
   const { width, height, fontSize, lineHeight, paddingTop, paddingBottom, paddingLeft, paddingRight } = dimensions
 

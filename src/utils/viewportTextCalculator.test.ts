@@ -67,26 +67,26 @@ describe('viewportTextCalculator', () => {
 
     it('should get computed font size from document', () => {
       global.document = {
-        documentElement: {}
-      }
+        documentElement: {} as HTMLElement
+      } as Document
       global.window = {
         getComputedStyle: vi.fn().mockReturnValue({
           fontSize: '20px'
         })
-      }
+      } as any
       
       expect(getRootFontSize()).toBe(20)
     })
 
     it('should return 16 as fallback for invalid font size', () => {
       global.document = {
-        documentElement: {}
-      }
+        documentElement: {} as HTMLElement
+      } as Document
       global.window = {
         getComputedStyle: vi.fn().mockReturnValue({
           fontSize: 'invalid'
         })
-      }
+      } as any
       
       expect(getRootFontSize()).toBe(16)
     })
@@ -324,7 +324,7 @@ describe('viewportTextCalculator', () => {
         createElement: vi.fn().mockReturnValue({
           getContext: vi.fn().mockReturnValue(mockContext)
         })
-      }
+      } as any
       
       const width = measureTextWidth('test text', 'Arial', 20)
       
@@ -338,7 +338,7 @@ describe('viewportTextCalculator', () => {
         createElement: vi.fn().mockReturnValue({
           getContext: vi.fn().mockReturnValue(null)
         })
-      }
+      } as any
       
       const width = measureTextWidth('test', 'sans-serif', 16)
       expect(width).toBe(4 * 16 * 0.5)

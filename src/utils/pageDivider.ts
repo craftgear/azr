@@ -3,8 +3,8 @@
  */
 
 import type { AozoraNode } from '../types/aozora'
-import type { CharacterCapacity } from './readerCapacityCalculator'
-import { applyLineBreaking, type BrokenLine } from './lineBreaker'
+// import type { CharacterCapacity } from './readerCapacityCalculator'
+import { applyLineBreaking /* , type BrokenLine */ } from './lineBreaker'
 
 // ページ内の行
 export type Line = {

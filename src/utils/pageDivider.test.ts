@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest'
 import {
   extractTextFromNode,
   countCharacters,
-  splitIntoLines,
-  type Line,
-  type Page
+  splitIntoLines
+  // type Line,
+  // type Page
 } from './pageDivider'
 import type { AozoraNode } from '../types/aozora'
-import type { CharacterCapacity } from './readerCapacityCalculator'
+// import type { CharacterCapacity } from './readerCapacityCalculator'
 
 describe('pageDivider', () => {
   describe('extractTextFromNode', () => {

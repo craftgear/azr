@@ -135,7 +135,6 @@ export const Library: React.FC<LibraryProps> = ({ onBookSelect, onClose }) => {
           </div>
         </div>
 
-        {console.log('Rendering - isLoading:', isLoading, 'books:', books, 'books.length:', books.length)}
         {isLoading ? (
           <div className="library-loading">読み込み中...</div>
         ) : books.length === 0 ? (

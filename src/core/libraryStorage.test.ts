@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { libraryStorage } from './libraryStorage'
+// import { libraryStorage } from './libraryStorage'
 import type { ParsedAozoraDocument } from '../types/aozora'
 
 // IndexedDBのモック
-const mockIndexedDB = {
-  open: vi.fn(),
-  deleteDatabase: vi.fn()
-}
+// const mockIndexedDB = {
+//   open: vi.fn(),
+//   deleteDatabase: vi.fn()
+// }
 
 // テスト用のサンプルドキュメント
 const createSampleDocument = (): ParsedAozoraDocument => ({
@@ -50,9 +50,9 @@ describe('libraryStorage', () => {
     it('should calculate total length correctly', () => {
       const doc = createSampleDocument()
       // テキストノードの文字数 + ルビベースの文字数
-      const expectedLength = 'これはテストドキュメントです。'.length + 
-                            '漢字'.length + 
-                            'のテストです。'.length
+      // const expectedLength = 'これはテストドキュメントです。'.length +
+      //                       '漢字'.length +
+      //                       'のテストです。'.length
       
       // 実際の実装では内部メソッドなので、ドキュメントの構造で確認
       expect(doc.nodes.length).toBe(3)
@@ -64,7 +64,7 @@ describe('libraryStorage', () => {
       const doc = createSampleDocument()
       
       // LibraryBookの構造を確認
-      const expectedKeys = ['id', 'document', 'metadata', 'readingProgress']
+      // const expectedKeys = ['id', 'document', 'metadata', 'readingProgress']
       
       // ドキュメントが正しい構造を持つことを確認
       expect(doc).toHaveProperty('nodes')

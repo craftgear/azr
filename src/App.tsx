@@ -265,6 +265,7 @@ const App: React.FC = () => {
             smoothScroll={settings.smoothScroll}
             paddingVertical={settings.paddingVertical}
             paddingHorizontal={settings.paddingHorizontal}
+            bookId={currentBookId}
           />
         )}
       </main>

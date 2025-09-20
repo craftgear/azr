@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react'
 import { flushSync } from 'react-dom'
 import type { ParsedAozoraDocument, AozoraNode } from '../../types/aozora'
-import { calculateReaderCapacity } from '../../utils/readerCapacityCalculator'
 import { divideIntoIntelligentPages, type IntelligentPageOptions } from '../../utils/intelligentPageDivider'
 import type { Page } from '../../utils/pageDivider'
+import { bookmarkStorage } from '../../core/bookmarkStorage'
 import './Reader.css'
 
 type ReaderProps = {
@@ -19,6 +19,9 @@ type ReaderProps = {
   intelligentPagingOptions?: IntelligentPageOptions
   enableWheelNavigation?: boolean
   fastNavigationMode?: boolean
+  bookId?: string | null  // 本のID（ブックマーク保存用）
+  initialPageIndex?: number  // 初期表示ページ（ブックマーク復元用）
+  onPageChange?: (pageIndex: number) => void  // ページ変更時のコールバック
 }
 
 export const Reader: React.FC<ReaderProps> = ({
@@ -34,6 +37,9 @@ export const Reader: React.FC<ReaderProps> = ({
   intelligentPagingOptions,
   enableWheelNavigation = true,
   fastNavigationMode = true,
+  bookId = null,
+  initialPageIndex = 0,
+  onPageChange,
 }) => {
   const readerRef = useRef<HTMLDivElement>(null)
   const [visibleDimensions, setVisibleDimensions] = useState({ cols: 0, rows: 0 })
@@ -43,6 +49,9 @@ export const Reader: React.FC<ReaderProps> = ({
   // 高速ナビゲーション用の状態
   const [targetPageIndex, setTargetPageIndex] = useState(0)
   const [isNavigating, setIsNavigating] = useState(false)
+  
+  // ブックマーク復元フラグ
+  const [hasRestoredBookmark, setHasRestoredBookmark] = useState(false)
 
   // intelligentPagingOptionsをメモ化して無限レンダリングを防ぐ
   const memoizedIntelligentOptions = useMemo(
@@ -61,6 +70,47 @@ export const Reader: React.FC<ReaderProps> = ({
       intelligentPagingOptions?.useCapacityBasedWrapping
     ]
   )
+
+  // ブックマークの自動保存
+  useEffect(() => {
+    if (bookId && pages.length > 0) {
+      // ページ変更時にブックマークを保存
+      bookmarkStorage.saveBookmark(bookId, currentPageIndex)
+      
+      // ページ変更コールバックを実行
+      if (onPageChange) {
+        onPageChange(currentPageIndex)
+      }
+    }
+  }, [currentPageIndex, bookId, pages.length, onPageChange])
+  
+  // ブックマークの復元
+  useEffect(() => {
+    if (bookId && pages.length > 0 && !hasRestoredBookmark) {
+      // 初回のみブックマークを復元
+      const loadBookmark = async () => {
+        const savedPageIndex = initialPageIndex || await bookmarkStorage.loadBookmark(bookId)
+        if (savedPageIndex !== null && savedPageIndex >= 0 && savedPageIndex < pages.length) {
+          setCurrentPageIndex(savedPageIndex)
+          setTargetPageIndex(savedPageIndex)
+        }
+        setHasRestoredBookmark(true)
+      }
+      loadBookmark()
+    }
+  }, [bookId, pages.length, hasRestoredBookmark, initialPageIndex])
+  
+  // コンポーネントアンマウント時のクリーンアップ
+  useEffect(() => {
+    return () => {
+      if (bookId) {
+        // 最後の位置を即座に保存
+        bookmarkStorage.saveBookmarkImmediate(bookId, currentPageIndex)
+        // タイマーをクリーンアップ
+        bookmarkStorage.cleanup(bookId)
+      }
+    }
+  }, [bookId, currentPageIndex])
 
   useEffect(() => {
     if (fastNavigationMode && targetPageIndex === currentPageIndex && isNavigating) {
@@ -106,7 +156,7 @@ export const Reader: React.FC<ReaderProps> = ({
   }, [targetPageIndex, currentPageIndex, fastNavigationMode])
 
   useEffect(() => {
-    const animateScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 200) => {
+    const _animateScroll = (element: HTMLElement, direction: 'left' | 'top', distance: number, duration: number = 200) => {
       const start = element[direction === 'left' ? 'scrollLeft' : 'scrollTop']
       const startTime = performance.now()
 
@@ -160,7 +210,7 @@ export const Reader: React.FC<ReaderProps> = ({
         // 縦書きモード: 列幅で表示列数を計算
         const colWidth = actualLineHeight
         const cols = Math.floor(visibleWidth / colWidth)
-        const scrollAmount = cols * colWidth // 表示列数分スクロール
+        // const scrollAmount = cols * colWidth // 表示列数分スクロール（未使用）
 
         // 左右キーでページ移動（縦書きは右から左へ読む）
         if (e.key === 'ArrowLeft') {
@@ -192,7 +242,7 @@ export const Reader: React.FC<ReaderProps> = ({
         // 横書きモード: 行高で表示行数を計算
         const rowHeight = actualLineHeight
         const rows = Math.floor(visibleHeight / rowHeight)
-        const scrollAmount = rows * rowHeight // 表示行数分スクロール
+        // const scrollAmount = rows * rowHeight // 表示行数分スクロール（未使用）
 
         // 上下キーでページ移動
         if (e.key === 'ArrowUp') {
@@ -399,10 +449,14 @@ export const Reader: React.FC<ReaderProps> = ({
         memoizedIntelligentOptions
       )
       setPages(calculatedPages)
-      setCurrentPageIndex(0)
-      setTargetPageIndex(0)
+      
+      // ページが再計算されたときはブックマーク復元フラグをリセット
+      if (!hasRestoredBookmark) {
+        setCurrentPageIndex(0)
+        setTargetPageIndex(0)
+      }
     }
-  }, [document, verticalMode, visibleDimensions, fontSize, lineHeight, paddingVertical, paddingHorizontal, memoizedIntelligentOptions])
+  }, [document, verticalMode, visibleDimensions, fontSize, lineHeight, paddingVertical, paddingHorizontal, memoizedIntelligentOptions, hasRestoredBookmark])
 
   // ノードのレンダリング関数
   const renderNode = (node: AozoraNode, index: number): React.ReactElement | string => {
@@ -423,16 +477,20 @@ export const Reader: React.FC<ReaderProps> = ({
             })
 
             // 省略記号の処理
-            return processedDashSegments.map((segment, idx) => {
+            const result: (string | React.ReactElement)[] = []
+            processedDashSegments.forEach((segment) => {
               if (typeof segment === 'string') {
                 // 省略記号を縦書き用記号に変換
-                return segment
+                result.push(segment
                   .replace(/…/g, '⋯')       // 横省略記号 → 縦省略記号
                   .replace(/‥/g, '・・')    // 2点省略記号 → 中点2つ
                   .replace(/\.\.\./g, '・・・') // ASCII 3つドット → 中点3つ
+                )
+              } else {
+                result.push(segment)
               }
-              return segment
             })
+            return result
           }
           return part
         }
@@ -507,11 +565,12 @@ export const Reader: React.FC<ReaderProps> = ({
         )
 
       case 'header':
-        const HeaderTag = `h${Math.min(Math.max(node.level, 1), 6)}` as keyof JSX.IntrinsicElements
-        return (
-          <HeaderTag key={index}>
-            {node.content}
-          </HeaderTag>
+        const level = Math.min(Math.max(node.level, 1), 6)
+        const HeaderTag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+        return React.createElement(
+          HeaderTag,
+          { key: index },
+          node.content
         )
 
       case 'emphasis':

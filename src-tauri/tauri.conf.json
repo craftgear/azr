@@ -19,8 +19,8 @@
         "height": 800,
         "resizable": true,
         "fullscreen": false,
-        "focus": true,
         "visible": true,
+        "center": true,
         "alwaysOnTop": false,
         "skipTaskbar": false
       }

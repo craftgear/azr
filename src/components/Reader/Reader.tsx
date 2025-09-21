@@ -467,10 +467,10 @@ export const Reader: React.FC<ReaderProps> = ({
 
         const processTextPart = (part: string) => {
           if (verticalMode) {
-            // ダッシュ記号の処理
-            const dashSegments = part.split(/([－]+)/g)
+            // ダッシュ記号の処理（U+2015 horizontal bar と U+FF0D full-width dash の両方に対応）
+            const dashSegments = part.split(/([－―]+)/g)
             const processedDashSegments = dashSegments.map((segment, idx) => {
-              if (/^－+$/.test(segment)) {
+              if (/^[－―]+$/.test(segment)) {
                 return <span key={idx} className="dash-line">{segment}</span>
               }
               return segment

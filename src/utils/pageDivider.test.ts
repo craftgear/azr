@@ -137,9 +137,10 @@ describe('pageDivider', () => {
 
       const lines = splitIntoLines(nodes)
 
-      expect(lines).toHaveLength(2)  // 空行は含まれない
+      expect(lines).toHaveLength(3)  // 空行も保持される（nbsp付き）
       expect(lines[0].text).toBe('一行目')
-      expect(lines[1].text).toBe('三行目')
+      expect(lines[1].text).toBe('\u00A0')  // 空行はnbspになる
+      expect(lines[2].text).toBe('三行目')
     })
 
     it('特殊ノードを含む行を処理', () => {

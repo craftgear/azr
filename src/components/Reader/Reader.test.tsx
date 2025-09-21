@@ -108,6 +108,45 @@ describe('Reader', () => {
     expect(container.querySelector('br')).toBeDefined()
   })
 
+  it('should preserve blank lines with proper height', () => {
+    const doc: ParsedAozoraDocument = {
+      nodes: [
+        { type: 'text', content: '第一行\n\n第三行' }
+      ],
+      metadata: {}
+    }
+    const { container } = render(<Reader document={doc} />)
+
+    // Check that the rendered content preserves blank lines
+    const pageContent = container.querySelector('.page-content-wrapper')
+    expect(pageContent).toBeDefined()
+
+    // Get all line divs (when pages are rendered) or check for br elements
+    const lineDivs = pageContent?.querySelectorAll('div') || []
+    const brElements = container.querySelectorAll('br')
+
+    // Either we have line divs (page rendering) or br elements (direct rendering)
+    const hasStructure = lineDivs.length > 0 || brElements.length > 0
+    expect(hasStructure).toBe(true)
+
+    // Check that the blank line contains nbsp to maintain height
+    const htmlContent = pageContent?.innerHTML || ''
+    const textContent = pageContent?.textContent || ''
+
+    // The nbsp character should be present in the rendered output
+    const hasNbsp = htmlContent.includes('\u00A0') ||
+                    htmlContent.includes('&nbsp;') ||
+                    textContent.includes('\u00A0')
+
+    expect(hasNbsp).toBe(true)
+
+    // Verify that we have 3 lines: "第一行", blank line with nbsp, "第三行"
+    const allText = pageContent?.textContent || ''
+    expect(allText).toContain('第一行')
+    expect(allText).toContain('第三行')
+    expect(allText).toContain('\u00A0')
+  })
+
   it('should use intelligent paging when enabled', () => {
     const doc: ParsedAozoraDocument = {
       nodes: [

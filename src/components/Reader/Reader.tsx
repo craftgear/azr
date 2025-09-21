@@ -468,9 +468,9 @@ export const Reader: React.FC<ReaderProps> = ({
         const processTextPart = (part: string) => {
           if (verticalMode) {
             // ダッシュ記号の処理
-            const dashSegments = part.split(/([\u2015]+)/g)
+            const dashSegments = part.split(/([－]+)/g)
             const processedDashSegments = dashSegments.map((segment, idx) => {
-              if (/^\u2015+$/.test(segment)) {
+              if (/^－+$/.test(segment)) {
                 return <span key={idx} className="dash-line">{segment}</span>
               }
               return segment
@@ -507,7 +507,7 @@ export const Reader: React.FC<ReaderProps> = ({
           <React.Fragment key={index}>
             {parts.map((part, i) => (
               <React.Fragment key={i}>
-                {processTextPart(part)}
+                {part === '' ? '\u00A0' : processTextPart(part)}
                 {i < parts.length - 1 && <br />}
               </React.Fragment>
             ))}
@@ -651,13 +651,56 @@ export const Reader: React.FC<ReaderProps> = ({
         style={pageStyle}
       >
         <div className="page-content-wrapper">
-          {page.lines.map((line, lineIndex) => (
-            <div key={`${pageIndex}-line-${lineIndex}`}>
-              {line.nodes.map((node, nodeIndex) =>
-                renderNode(node, `${pageIndex}-${lineIndex}-${nodeIndex}` as any)
-              )}
-            </div>
-          ))}
+          {page.lines.map((line, lineIndex) => {
+            // Debug logging for ALL lines to understand what's happening
+            console.log(`Line ${lineIndex}:`, {
+              nodesLength: line.nodes.length,
+              firstNodeType: line.nodes[0]?.type,
+              firstNodeContent: line.nodes[0]?.type === 'text' ? JSON.stringify(line.nodes[0].content) : 'N/A',
+              lineText: JSON.stringify(line.text),
+              lineTextLength: line.text.length,
+              trimmedLineText: line.text.trim(),
+              trimmedLineTextLength: line.text.trim().length
+            });
+
+            // Check if this is a blank line (only contains nbsp)
+            const isBlankLine = line.text === '\u00A0' &&
+                               line.nodes.length === 1 &&
+                               line.nodes[0].type === 'text' &&
+                               line.nodes[0].content === '\u00A0'
+
+            // Check if this line contains only whitespace/newlines
+            // Also check line.text in case it's out of sync with nodes
+            const isOnlyWhitespace = (line.nodes.length === 1 &&
+                                     line.nodes[0].type === 'text' &&
+                                     line.nodes[0].content.trim() === '') ||
+                                    line.text.trim() === ''
+
+            // Determine if this should be treated as a blank line
+            const shouldBeBlank = isBlankLine || isOnlyWhitespace
+
+            // Log decision for blank/whitespace lines
+            if (line.text.trim() === '' || line.text === '\u00A0') {
+              console.log(`  Decision: isBlankLine=${isBlankLine}, isOnlyWhitespace=${isOnlyWhitespace}, shouldBeBlank=${shouldBeBlank}, class="${shouldBeBlank ? 'blank-line' : ''}"`);
+            }
+
+            return (
+              <div
+                key={`${pageIndex}-line-${lineIndex}`}
+                className={shouldBeBlank ? 'blank-line' : ''}
+              >
+                {shouldBeBlank ? (
+                  // For blank lines, directly render the nbsp character
+                  '\u00A0'
+                ) : (
+                  // For normal lines, render nodes as usual
+                  line.nodes.map((node, nodeIndex) =>
+                    renderNode(node, `${pageIndex}-${lineIndex}-${nodeIndex}` as any)
+                  )
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
     ))

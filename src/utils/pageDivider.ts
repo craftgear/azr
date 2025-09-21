@@ -90,22 +90,37 @@ export const splitIntoLines = (nodes: AozoraNode[], maxCharsPerLine?: number): L
         if (i > 0) {
           // 改行があった場合、現在の行を確定
           if (currentLineNodes.length > 0 || currentLineText) {
+            // 通常の行を追加
             lines.push({
               nodes: [...currentLineNodes],
               text: currentLineText,
               characterCount: countCharacters(currentLineText),
               normalizedCount: 0  // 後で計算
             })
+          } else {
+            // 空行の場合、ノンブレーキングスペースを含む行を作成
+            const blankNode: AozoraNode = { type: 'text', content: '\u00A0' }
+            lines.push({
+              nodes: [blankNode],
+              text: '\u00A0',
+              characterCount: 1,
+              normalizedCount: 0
+            })
           }
           currentLineNodes = []
           currentLineText = ''
         }
-        
+
         if (parts[i]) {
           const textNode: AozoraNode = { type: 'text', content: parts[i] }
           currentLineNodes.push(textNode)
           currentLineText += parts[i]
+        } else if (i === 0 && parts.length > 1) {
+          // 先頭が空の場合（テキストが改行で始まる場合）
+          // 何もしない - 次の i > 0 の処理で空行が作られる
         }
+        // 空のパート（連続改行の中間）の場合は何もしない
+        // 次のループで空行として処理される
       }
     } else {
       // その他のノードはそのまま現在の行に追加

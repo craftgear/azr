@@ -13,12 +13,14 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "title": "AZR - Aozora Reader",
         "width": 1200,
         "height": 800,
         "resizable": true,
         "fullscreen": false,
         "focus": true,
+        "visible": true,
         "alwaysOnTop": false,
         "skipTaskbar": false
       }

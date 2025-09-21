@@ -47,24 +47,6 @@ const App: React.FC = () => {
     }
   }, [document])
 
-  // ウィンドウフォーカス時にReaderにフォーカスを設定
-  useEffect(() => {
-    const handleWindowFocus = () => {
-      // Readerコンポーネントが表示されている場合、フォーカスを設定
-      const readerElement = document.querySelector('.reader') as HTMLElement
-      if (readerElement) {
-        readerElement.focus()
-      }
-    }
-
-    window.addEventListener('focus', handleWindowFocus)
-    // 初期フォーカス
-    handleWindowFocus()
-
-    return () => {
-      window.removeEventListener('focus', handleWindowFocus)
-    }
-  }, [document])
 
   // マウス移動時にヘッダーを表示
   useEffect(() => {

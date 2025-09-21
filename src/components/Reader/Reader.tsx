@@ -190,11 +190,9 @@ export const Reader: React.FC<ReaderProps> = ({
     // Readerコンポーネントが表示されたときに自動でフォーカスを設定
     if (readerRef.current) {
       readerRef.current.focus()
-      console.log('Reader focused:', document.activeElement)
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      console.log('Key pressed:', e.key, 'Active element:', document.activeElement)
       if (!readerRef.current) return
 
       // const element = readerRef.current
@@ -659,16 +657,6 @@ export const Reader: React.FC<ReaderProps> = ({
       >
         <div className="page-content-wrapper">
           {page.lines.map((line, lineIndex) => {
-            // Debug logging for ALL lines to understand what's happening
-            console.log(`Line ${lineIndex}:`, {
-              nodesLength: line.nodes.length,
-              firstNodeType: line.nodes[0]?.type,
-              firstNodeContent: line.nodes[0]?.type === 'text' ? JSON.stringify(line.nodes[0].content) : 'N/A',
-              lineText: JSON.stringify(line.text),
-              lineTextLength: line.text.length,
-              trimmedLineText: line.text.trim(),
-              trimmedLineTextLength: line.text.trim().length
-            });
 
             // Check if this is a blank line (only contains nbsp)
             const isBlankLine = line.text === '\u00A0' &&
@@ -686,10 +674,6 @@ export const Reader: React.FC<ReaderProps> = ({
             // Determine if this should be treated as a blank line
             const shouldBeBlank = isBlankLine || isOnlyWhitespace
 
-            // Log decision for blank/whitespace lines
-            if (line.text.trim() === '' || line.text === '\u00A0') {
-              console.log(`  Decision: isBlankLine=${isBlankLine}, isOnlyWhitespace=${isOnlyWhitespace}, shouldBeBlank=${shouldBeBlank}, class="${shouldBeBlank ? 'blank-line' : ''}"`);
-            }
 
             return (
               <div

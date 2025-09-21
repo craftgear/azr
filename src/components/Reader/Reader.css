@@ -54,10 +54,17 @@
   writing-mode: horizontal-tb;
   text-orientation: mixed;
   transform: rotate(90deg);
-  margin-bottom: 0.5em;
-  margin-left: 0.1em;
+  margin-bottom: 0.75em;
   line-height: 1;
   letter-spacing: -0.18em;
+}
+
+/* Safari only */
+@supports (font: -apple-system-body) {
+  .reader-vertical .dash-line {
+    letter-spacing: -0.2em;
+    margin-right: -0.2em;
+  }
 }
 
 /* ルビ設定 */
@@ -68,8 +75,16 @@ ruby {
 ruby rt {
   font-size: 0.5em;
   font-weight: normal;
-  margin-left: -0.4em;
+  margin-left: 0em;
 }
+
+/* Safari only */
+@supports (font: -apple-system-body) {
+  ruby rt {
+    margin-left: -0.4em;
+  }
+}
+
 
 /* ルビサイズ設定 */
 .ruby-small ruby rt {
@@ -114,6 +129,7 @@ ruby rt {
   margin: 0.5em 0;
   font-weight: bold;
 }
+
 
 /* 強調設定 */
 .emphasis {
@@ -222,7 +238,6 @@ ruby rt {
 .reader-vertical .heading-medium,
 .reader-vertical .heading-small {
   text-align: inherit;
-  margin: 0 0 0 1em;
 }
 
 /* ブロック字下げ */
@@ -344,6 +359,7 @@ ruby rt {
 .page-content-wrapper {
   max-width: 100%;
   max-height: 100%;
+  white-space: pre-wrap;
 }
 
 /* 縦書きモードでのコンテンツラッパー */
@@ -472,4 +488,23 @@ ruby rt {
 .reader-dark~.dimensions-label {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* 単純な字下げ */
+.simple-indent {
+  display: inline-block;
+}
+
+/* 縦書き時の単純な字下げ */
+.reader-vertical .simple-indent {
+  margin-top: var(--indent-size);
+  width: 0;
+  height: var(--indent-size);
+}
+
+/* 横書き時の単純な字下げ */
+.reader-horizontal .simple-indent {
+  margin-left: var(--indent-size);
+  width: var(--indent-size);
+  height: 0;
 }

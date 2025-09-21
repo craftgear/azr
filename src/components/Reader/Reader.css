@@ -6,6 +6,11 @@
   transition: background-color 0.3s, color 0.3s;
 }
 
+/* キーボード操作のためのフォーカス時のアウトラインを非表示 */
+.reader:focus {
+  outline: none;
+}
+
 /* テーマ設定 */
 .reader-light {
   color: #333333;

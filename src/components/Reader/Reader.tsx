@@ -187,6 +187,11 @@ export const Reader: React.FC<ReaderProps> = ({
     //   requestAnimationFrame(animate)
     // }
 
+    // Readerコンポーネントが表示されたときに自動でフォーカスを設定
+    if (readerRef.current) {
+      readerRef.current.focus()
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!readerRef.current) return
 
@@ -708,7 +713,12 @@ export const Reader: React.FC<ReaderProps> = ({
 
   return (
     <>
-      <div ref={readerRef} className={readerClass} style={{ ...readerStyle, position: 'relative', overflow: 'hidden' }}>
+      <div
+        ref={readerRef}
+        className={readerClass}
+        style={{ ...readerStyle, position: 'relative', overflow: 'hidden' }}
+        tabIndex={0}
+      >
         {renderPages()}
       </div>
       {/* ページ情報を表示 */}

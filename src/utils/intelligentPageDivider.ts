@@ -155,10 +155,9 @@ export const splitLineBySentences = (line: Line): Line[] => {
   const patterns = [
     '。',
     '」',
-    '』', 
+    '』',
     '！',
-    '？',
-    '、'
+    '？'
   ]
 
   let currentNodes: AozoraNode[] = []
@@ -388,6 +387,7 @@ const divideVerticalLines = (
   const pageCapacity = effectiveCapacity.totalCharacters
   const pages: Page[] = []
 
+  // 各行のnormalizedCountを計算
   lines.forEach(line => {
     const charCount = line.characterCount
     if (charCount === 0) {
@@ -408,9 +408,11 @@ const divideVerticalLines = (
   }
 
   let nodeIndex = 0
+  let lineQueue = [...lines]
+  let queueIndex = 0
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
+  while (queueIndex < lineQueue.length) {
+    const line = lineQueue[queueIndex]
     const hasHeading = line.nodes.some(node =>
       node.type === 'heading' || node.type === 'header'
     )
@@ -424,24 +426,143 @@ const divideVerticalLines = (
         startIndex: nodeIndex,
         endIndex: nodeIndex + line.nodes.length - 1
       }
+      nodeIndex += line.nodes.length
+      queueIndex++
     } else if (currentPage.totalCharacters + line.normalizedCount <= pageCapacity) {
       currentPage.lines.push(line)
       currentPage.totalCharacters += line.normalizedCount
       currentPage.endIndex = nodeIndex + line.nodes.length - 1
+      nodeIndex += line.nodes.length
+      queueIndex++
     } else {
-      if (currentPage.lines.length > 0) {
-        pages.push(currentPage)
-      }
-
-      currentPage = {
-        lines: [line],
-        totalCharacters: line.normalizedCount,
-        startIndex: nodeIndex,
-        endIndex: nodeIndex + line.nodes.length - 1
+      // 行が収まらない場合、残り容量があれば文単位で分割を試みる
+      const remainingCapacity = pageCapacity - currentPage.totalCharacters
+      
+      if (remainingCapacity > 0 && currentPage.lines.length > 0) {
+        // 文単位で分割
+        const segments = splitLineBySentences(line)
+        
+        if (segments.length > 1) {
+          // 各セグメントのnormalizedCountを計算
+          segments.forEach(segment => {
+            const charCount = segment.characterCount
+            if (charCount === 0) {
+              segment.normalizedCount = 0
+            } else if (charCount < rowsPerColumn) {
+              segment.normalizedCount = rowsPerColumn
+            } else {
+              const columns = Math.ceil(charCount / rowsPerColumn)
+              segment.normalizedCount = columns * rowsPerColumn
+            }
+          })
+          
+          // 現在のページに収まるセグメントを追加
+          let segmentIndex = 0
+          let addedToCurrentPage = false
+          
+          while (segmentIndex < segments.length) {
+            const segment = segments[segmentIndex]
+            
+            if (currentPage.totalCharacters + segment.normalizedCount <= pageCapacity) {
+              currentPage.lines.push(segment)
+              currentPage.totalCharacters += segment.normalizedCount
+              currentPage.endIndex = nodeIndex + segment.nodes.length - 1
+              nodeIndex += segment.nodes.length
+              segmentIndex++
+              addedToCurrentPage = true
+            } else {
+              break
+            }
+          }
+          
+          if (addedToCurrentPage && segmentIndex < segments.length) {
+            // 残りのセグメントがある場合、次のページへ
+            pages.push(currentPage)
+            
+            // 残りのセグメントを1つの行にまとめる
+            const remainingNodes: AozoraNode[] = []
+            let remainingText = ''
+            
+            for (let i = segmentIndex; i < segments.length; i++) {
+              remainingNodes.push(...segments[i].nodes)
+              remainingText += segments[i].text
+            }
+            
+            const remainingLine: Line = {
+              text: remainingText,
+              nodes: remainingNodes,
+              characterCount: countCharacters(remainingText),
+              normalizedCount: 0
+            }
+            
+            // normalizedCountを計算
+            const charCount = remainingLine.characterCount
+            if (charCount === 0) {
+              remainingLine.normalizedCount = 0
+            } else if (charCount < rowsPerColumn) {
+              remainingLine.normalizedCount = rowsPerColumn
+            } else {
+              const columns = Math.ceil(charCount / rowsPerColumn)
+              remainingLine.normalizedCount = columns * rowsPerColumn
+            }
+            
+            currentPage = {
+              lines: [remainingLine],
+              totalCharacters: remainingLine.normalizedCount,
+              startIndex: nodeIndex,
+              endIndex: nodeIndex + remainingLine.nodes.length - 1
+            }
+            nodeIndex += remainingLine.nodes.length
+            queueIndex++
+          } else if (!addedToCurrentPage) {
+            // 何も追加できなかった場合は通常の処理
+            if (currentPage.lines.length > 0) {
+              pages.push(currentPage)
+            }
+            
+            currentPage = {
+              lines: [line],
+              totalCharacters: line.normalizedCount,
+              startIndex: nodeIndex,
+              endIndex: nodeIndex + line.nodes.length - 1
+            }
+            nodeIndex += line.nodes.length
+            queueIndex++
+          } else {
+            // すべてのセグメントが現在のページに収まった
+            queueIndex++
+          }
+        } else {
+          // 分割できない場合は通常の処理
+          if (currentPage.lines.length > 0) {
+            pages.push(currentPage)
+          }
+          
+          currentPage = {
+            lines: [line],
+            totalCharacters: line.normalizedCount,
+            startIndex: nodeIndex,
+            endIndex: nodeIndex + line.nodes.length - 1
+          }
+          nodeIndex += line.nodes.length
+          queueIndex++
+        }
+      } else {
+        // 残り容量がない、または現在のページが空の場合
+        if (currentPage.lines.length > 0) {
+          pages.push(currentPage)
+        }
+        
+        currentPage = {
+          lines: [line],
+          totalCharacters: line.normalizedCount,
+          startIndex: nodeIndex,
+          endIndex: nodeIndex + line.nodes.length - 1
+        }
+        nodeIndex += line.nodes.length
+        queueIndex++
       }
     }
-
-    nodeIndex += line.nodes.length
   }
 
   if (currentPage.lines.length > 0) {

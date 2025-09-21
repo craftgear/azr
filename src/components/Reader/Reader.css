@@ -54,7 +54,8 @@
   writing-mode: horizontal-tb;
   text-orientation: mixed;
   transform: rotate(90deg);
-  margin: 0.5em 0 0.75em 0.25em;
+  margin-bottom: 0.5em;
+  margin-left: 0.1em;
   line-height: 1;
   letter-spacing: -0.18em;
 }
@@ -221,7 +222,7 @@ ruby rt {
 .reader-vertical .heading-medium,
 .reader-vertical .heading-small {
   text-align: inherit;
-  margin: 0 1em;
+  margin: 0 0 0 1em;
 }
 
 /* ブロック字下げ */
@@ -275,7 +276,7 @@ ruby rt {
   top: 0;
   left: 0;
   justify-content: center;
-  align-items: center;
+  align-items: start;
   display: flex;
   opacity: 0;
   transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;

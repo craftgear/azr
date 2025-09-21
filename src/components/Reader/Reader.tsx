@@ -190,9 +190,11 @@ export const Reader: React.FC<ReaderProps> = ({
     // Readerコンポーネントが表示されたときに自動でフォーカスを設定
     if (readerRef.current) {
       readerRef.current.focus()
+      console.log('Reader focused:', document.activeElement)
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      console.log('Key pressed:', e.key, 'Active element:', document.activeElement)
       if (!readerRef.current) return
 
       // const element = readerRef.current

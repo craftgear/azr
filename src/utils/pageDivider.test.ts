@@ -51,17 +51,6 @@ describe('pageDivider', () => {
       expect(extractTextFromNode(node)).toBe('大きい文字')
     })
 
-    it('ブロック字下げから再帰的に抽出', () => {
-      const node: AozoraNode = {
-        type: 'block_indent',
-        indent: 2,
-        content: [
-          { type: 'text', content: '字下げ' },
-          { type: 'text', content: 'テキスト' }
-        ]
-      }
-      expect(extractTextFromNode(node)).toBe('字下げテキスト')
-    })
 
     it('特殊文字注記から文字を抽出', () => {
       const node: AozoraNode = {

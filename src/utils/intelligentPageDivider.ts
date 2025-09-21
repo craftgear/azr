@@ -669,7 +669,6 @@ export const calculateContentComplexity = (nodes: AozoraNode[]): ContentComplexi
           break
 
         case 'text_size':
-        case 'block_indent':
           if ('content' in node && Array.isArray(node.content)) {
             countNodes(node.content)
           }

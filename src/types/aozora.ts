@@ -31,25 +31,6 @@ export type Heading = {
   level: 'large' | 'medium' | 'small'  // 大見出し、中見出し、小見出し
 }
 
-// ブロック字下げ
-export type BlockIndent = {
-  type: 'block_indent'
-  content: AozoraNode[]
-  indent: number  // 字下げの文字数
-  style?: 'normal' | 'hanging'  // 通常字下げ or ぶら下げ
-}
-
-// ブロック字下げ開始タグ（空行として表示）
-export type BlockIndentStart = {
-  type: 'block_indent_start'
-  indent: number  // 字下げの文字数
-}
-
-// ブロック字下げ終了タグ（空行として表示）
-export type BlockIndentEnd = {
-  type: 'block_indent_end'
-}
-
 // 特殊文字説明（レンダリングはせず、注記として保持）
 export type SpecialCharNote = {
   type: 'special_char_note'
@@ -76,9 +57,6 @@ export type AozoraNode =
   | EmphasisDots
   | TextSize
   | Heading
-  | BlockIndent
-  | BlockIndentStart
-  | BlockIndentEnd
   | SpecialCharNote
   | Emphasis
   | Header

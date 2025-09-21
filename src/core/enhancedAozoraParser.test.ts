@@ -13,11 +13,6 @@ function mergeTextNodes(nodes: any[]): any[] {
         ...node,
         content: mergeTextNodes(node.content)
       })
-    } else if (node.type === 'block_indent' && node.content) {
-      merged.push({
-        ...node,
-        content: mergeTextNodes(node.content)
-      })
     } else {
       merged.push(node)
     }
@@ -144,103 +139,6 @@ describe('enhancedAozoraParser', () => {
     })
   })
 
-  describe('ブロック字下げ', () => {
-    it('should parse block indentation', () => {
-      const input = '［＃ここから２字下げ］字下げテキスト［＃ここで字下げ終わり］'
-      const result = parseAozoraText(input)
-      const merged = mergeTextNodes(result.nodes)
-
-      // Now includes block_indent_start, block_indent, and block_indent_end nodes
-      expect(merged).toHaveLength(3)
-
-      expect(merged[0]).toEqual({
-        type: 'block_indent_start',
-        indent: 2
-      })
-
-      expect(merged[1]).toEqual({
-        type: 'block_indent',
-        content: [{
-          type: 'text',
-          content: '字下げテキスト'
-        }],
-        indent: 2
-      })
-
-      expect(merged[2]).toEqual({
-        type: 'block_indent_end'
-      })
-    })
-
-    it('should handle nested content in block indent', () => {
-      const input = '［＃ここから３字下げ］第一段落《だいいちだんらく》の内容［＃ここで字下げ終わり］'
-      const result = parseAozoraText(input)
-      const merged = mergeTextNodes(result.nodes)
-
-      // Now includes block_indent_start, block_indent, and block_indent_end nodes
-      expect(merged).toHaveLength(3)
-
-      expect(merged[0]).toEqual({
-        type: 'block_indent_start',
-        indent: 3
-      })
-
-      expect(merged[1].type).toBe('block_indent')
-      const blockNode = merged[1] as any
-      expect(blockNode.indent).toBe(3)
-      // パーサーは漢字を先にテキストとして追加し、その後ルビノードを追加するため3つのノードになる
-      expect(blockNode.content).toHaveLength(3)
-      expect(blockNode.content[0]).toEqual({
-        type: 'text',
-        content: '第一段落'
-      })
-      expect(blockNode.content[1]).toEqual({
-        type: 'ruby',
-        base: '第一段落',
-        reading: 'だいいちだんらく'
-      })
-      expect(blockNode.content[2]).toEqual({
-        type: 'text',
-        content: 'の内容'
-      })
-
-      expect(merged[2]).toEqual({
-        type: 'block_indent_end'
-      })
-    })
-
-    it('should handle block indent special tags as blank lines', () => {
-      const input = `［＃ここから２字下げ］
-御家の大変に当り、今後は一門老臣の和合協力が必要である。よって神文誓書して、なにごとによらず、互いに熟議相談しておこなうこと、独り主君にもの申すことあるべからず。また、互いにいかなる意趣あるとも、向後十年間は相互に堪忍して公用の全きよう勤むべし。
-［＃ここで字下げ終わり］`
-
-      const result = parseAozoraText(input)
-
-      // Should have block_indent_start, text with newline, block_indent with content, and block_indent_end nodes
-      expect(result.nodes.length).toBeGreaterThanOrEqual(3)
-
-      // Check for block_indent_start node
-      const startNode = result.nodes.find(node => node.type === 'block_indent_start')
-      expect(startNode).toBeDefined()
-      expect(startNode).toEqual({
-        type: 'block_indent_start',
-        indent: 2
-      })
-
-      // Check for block_indent node with content
-      const blockNode = result.nodes.find(node => node.type === 'block_indent')
-      expect(blockNode).toBeDefined()
-      expect((blockNode as any).indent).toBe(2)
-      expect((blockNode as any).content.length).toBeGreaterThan(0)
-
-      // Check for block_indent_end node
-      const endNode = result.nodes.find(node => node.type === 'block_indent_end')
-      expect(endNode).toBeDefined()
-      expect(endNode).toEqual({
-        type: 'block_indent_end'
-      })
-    })
-  })
 
   describe('特殊文字説明', () => {
     it('should parse special character notation', () => {
@@ -281,41 +179,23 @@ describe('enhancedAozoraParser', () => {
       })
     })
 
-    it('should handle simple indentation', () => {
-      const input = '［＃３字下げ］テキスト'
-      const result = parseAozoraText(input)
-
-      expect(result.nodes).toHaveLength(1)
-      expect(result.nodes[0]).toEqual({
-        type: 'text',
-        content: '　　　テキスト'
-      })
-    })
   })
 
   describe('複雑な組み合わせ', () => {
     it('should handle mixed formatting', () => {
-      const input = '［＃「序の章」は中見出し］［＃３字下げ］昔々《むかしむかし》、［＃「ある所」に傍点］に'
+      const input = '［＃「序の章」は中見出し］昔々《むかしむかし》、［＃「ある所」に傍点］に'
       const result = parseAozoraText(input)
 
       // ノードの種類を確認
       expect(result.nodes[0].type).toBe('heading')
       expect(result.nodes[0]).toHaveProperty('content', '序の章')
 
-      // 字下げのスペースを含むテキスト
-      expect(result.nodes[1].type).toBe('text')
-      expect(result.nodes[1]).toHaveProperty('content')
-
       // 傍点があることを確認
       const hasEmphasisDots = result.nodes.some(node => node.type === 'emphasis_dots')
       expect(hasEmphasisDots).toBe(true)
 
-      // 注: 現在の実装では、単純な字下げタグの後のルビは
-      // テキストセグメント内で処理されるため、個別のルビノードにはならない
-      // これは設計上の制限
-
       // 最低限必要なノード数
-      expect(result.nodes.length).toBeGreaterThanOrEqual(3)
+      expect(result.nodes.length).toBeGreaterThanOrEqual(2)
     })
 
     it('should handle unclosed text size tags gracefully', () => {

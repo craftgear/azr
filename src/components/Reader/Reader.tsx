@@ -49,7 +49,7 @@ export const Reader: React.FC<ReaderProps> = ({
   // 高速ナビゲーション用の状態
   const [targetPageIndex, setTargetPageIndex] = useState(0)
   const [isNavigating, setIsNavigating] = useState(false)
-  
+
   // ブックマーク復元フラグ
   const [hasRestoredBookmark, setHasRestoredBookmark] = useState(false)
 
@@ -76,14 +76,14 @@ export const Reader: React.FC<ReaderProps> = ({
     if (bookId && pages.length > 0) {
       // ページ変更時にブックマークを保存
       bookmarkStorage.saveBookmark(bookId, currentPageIndex)
-      
+
       // ページ変更コールバックを実行
       if (onPageChange) {
         onPageChange(currentPageIndex)
       }
     }
   }, [currentPageIndex, bookId, pages.length, onPageChange])
-  
+
   // ブックマークの復元
   useEffect(() => {
     if (bookId && pages.length > 0 && !hasRestoredBookmark) {
@@ -99,7 +99,7 @@ export const Reader: React.FC<ReaderProps> = ({
       loadBookmark()
     }
   }, [bookId, pages.length, hasRestoredBookmark, initialPageIndex])
-  
+
   // コンポーネントアンマウント時のクリーンアップ
   useEffect(() => {
     return () => {
@@ -397,22 +397,22 @@ export const Reader: React.FC<ReaderProps> = ({
     // readerの全体サイズからページのパディングを引いた実際の表示領域を計算
     const readerElement = readerRef.current
     const computedStyle = window.getComputedStyle(readerElement)
-    
+
     // 実際のフォントサイズとline-heightを取得
     const actualFontSize = parseFloat(computedStyle.fontSize) || fontSize
     const actualLineHeight = parseFloat(computedStyle.lineHeight) || actualFontSize * lineHeight
-    
+
     // パディングをピクセルに変換（1rem = 16px として計算）
     const remToPixel = parseFloat(computedStyle.fontSize) || 16
     const paddingTopPx = paddingVertical * remToPixel
     const paddingBottomPx = paddingVertical * remToPixel
     const paddingLeftPx = paddingHorizontal * remToPixel
     const paddingRightPx = paddingHorizontal * remToPixel
-    
+
     // 実際の表示可能エリア
     const visibleWidth = readerElement.clientWidth - paddingLeftPx - paddingRightPx
     const visibleHeight = readerElement.clientHeight - paddingTopPx - paddingBottomPx
-    
+
     // カスタム容量を計算
     let capacity
     if (verticalMode) {
@@ -449,7 +449,7 @@ export const Reader: React.FC<ReaderProps> = ({
         memoizedIntelligentOptions
       )
       setPages(calculatedPages)
-      
+
       // ページが再計算されたときはブックマーク復元フラグをリセット
       if (!hasRestoredBookmark) {
         setCurrentPageIndex(0)
@@ -468,9 +468,9 @@ export const Reader: React.FC<ReaderProps> = ({
         const processTextPart = (part: string) => {
           if (verticalMode) {
             // ダッシュ記号の処理
-            const dashSegments = part.split(/([―]+)/g)
+            const dashSegments = part.split(/([\u2015]+)/g)
             const processedDashSegments = dashSegments.map((segment, idx) => {
-              if (/^―+$/.test(segment)) {
+              if (/^\u2015+$/.test(segment)) {
                 return <span key={idx} className="dash-line">{segment}</span>
               }
               return segment
@@ -546,17 +546,6 @@ export const Reader: React.FC<ReaderProps> = ({
           return <h4 key={index} className={HeadingClass}>{node.content}</h4>
         }
 
-      case 'block_indent':
-        return (
-          <div
-            key={index}
-            className="block-indent"
-            style={{ paddingLeft: `${node.indent}em` }}
-          >
-            {node.content.map((child, i) => renderNode(child, i))}
-          </div>
-        )
-
       case 'special_char_note':
         return (
           <span
@@ -583,12 +572,6 @@ export const Reader: React.FC<ReaderProps> = ({
             {node.content}
           </span>
         )
-
-      case 'block_indent_start':
-        return <br key={index} />
-
-      case 'block_indent_end':
-        return <br key={index} />
 
       default:
         return ''
@@ -682,7 +665,7 @@ export const Reader: React.FC<ReaderProps> = ({
 
   return (
     <>
-      <div ref={readerRef} className={readerClass} style={{...readerStyle, position: 'relative', overflow: 'hidden'}}>
+      <div ref={readerRef} className={readerClass} style={{ ...readerStyle, position: 'relative', overflow: 'hidden' }}>
         {renderPages()}
       </div>
       {/* ページ情報を表示 */}

@@ -240,18 +240,6 @@ ruby rt {
   text-align: inherit;
 }
 
-/* ブロック字下げ */
-.block-indent {
-  display: block;
-  margin: 0.5em 0;
-}
-
-/* 縦書き時のブロック字下げ */
-.reader-vertical .block-indent {
-  margin: 0;
-  padding-top: var(--indent-size, 2em);
-  padding-left: 0;
-}
 
 /* 特殊文字（ツールチップ付き） */
 .special-char {
@@ -490,21 +478,3 @@ ruby rt {
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-/* 単純な字下げ */
-.simple-indent {
-  display: inline-block;
-}
-
-/* 縦書き時の単純な字下げ */
-.reader-vertical .simple-indent {
-  margin-top: var(--indent-size);
-  width: 0;
-  height: var(--indent-size);
-}
-
-/* 横書き時の単純な字下げ */
-.reader-horizontal .simple-indent {
-  margin-left: var(--indent-size);
-  width: var(--indent-size);
-  height: 0;
-}

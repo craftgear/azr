@@ -337,8 +337,6 @@ const extractTextFromNode = (node: AozoraNode): string => {
       return node.content.map(extractTextFromNode).join('')
     case 'heading':
       return node.content
-    case 'block_indent':
-      return node.content.map(extractTextFromNode).join('')
     case 'special_char_note':
       return node.char
     case 'emphasis':

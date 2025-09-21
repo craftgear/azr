@@ -46,11 +46,7 @@ export const extractTextFromNode = (node: AozoraNode): string => {
     
     case 'heading':
       return node.content
-    
-    case 'block_indent':
-      // 子ノードのテキストを再帰的に抽出
-      return node.content.map(extractTextFromNode).join('')
-    
+
     case 'special_char_note':
       // 特殊文字は1文字としてカウント
       return node.char
@@ -60,14 +56,6 @@ export const extractTextFromNode = (node: AozoraNode): string => {
     
     case 'header':
       return node.content
-
-    case 'block_indent_start':
-      // 開始タグは空行として扱う（テキスト表示はしない）
-      return ''
-
-    case 'block_indent_end':
-      // 終了タグは空行として扱う（テキスト表示はしない）
-      return ''
 
     default:
       return ''

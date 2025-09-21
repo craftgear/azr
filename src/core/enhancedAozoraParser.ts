@@ -11,7 +11,6 @@ type ParserState = {
   text: string
   // スタック式の状態管理
   textSizeStack: Array<{ size: 'small' | 'large', nodes: AozoraNode[] }>
-  blockIndentStack: Array<{ indent: number, nodes: AozoraNode[] }>
 }
 
 export const parseAozoraText = (text: string): ParsedAozoraDocument => {
@@ -19,8 +18,7 @@ export const parseAozoraText = (text: string): ParsedAozoraDocument => {
     nodes: [],
     currentPosition: 0,
     text,
-    textSizeStack: [],
-    blockIndentStack: []
+    textSizeStack: []
   }
   
   while (state.currentPosition < state.text.length) {
@@ -70,10 +68,8 @@ const processSpecialTag = (state: ParserState): boolean => {
     const targetText = emphasisMatch[1]
     
     // 直前のノードを確認して、対象テキストを探す
-    const currentNodes = state.textSizeStack.length > 0 
+    const currentNodes = state.textSizeStack.length > 0
       ? state.textSizeStack[state.textSizeStack.length - 1].nodes
-      : state.blockIndentStack.length > 0
-      ? state.blockIndentStack[state.blockIndentStack.length - 1].nodes
       : state.nodes
     
     if (currentNodes.length > 0) {
@@ -97,12 +93,6 @@ const processSpecialTag = (state: ParserState): boolean => {
           // 傍点ノードを追加
           if (state.textSizeStack.length > 0) {
             state.textSizeStack[state.textSizeStack.length - 1].nodes.push({
-              type: 'emphasis_dots',
-              content: targetText,
-              text: targetText
-            })
-          } else if (state.blockIndentStack.length > 0) {
-            state.blockIndentStack[state.blockIndentStack.length - 1].nodes.push({
               type: 'emphasis_dots',
               content: targetText,
               text: targetText
@@ -144,10 +134,8 @@ const processSpecialTag = (state: ParserState): boolean => {
     const level = levelMap[headingMatch[2] as '大' | '中' | '小']
     
     // 直前のノードを確認して、対象テキストを探す
-    const currentNodes = state.textSizeStack.length > 0 
+    const currentNodes = state.textSizeStack.length > 0
       ? state.textSizeStack[state.textSizeStack.length - 1].nodes
-      : state.blockIndentStack.length > 0
-      ? state.blockIndentStack[state.blockIndentStack.length - 1].nodes
       : state.nodes
     
     if (currentNodes.length > 0) {
@@ -171,12 +159,6 @@ const processSpecialTag = (state: ParserState): boolean => {
           // 見出しノードを追加
           if (state.textSizeStack.length > 0) {
             state.textSizeStack[state.textSizeStack.length - 1].nodes.push({
-              type: 'heading',
-              content: targetText,
-              level
-            })
-          } else if (state.blockIndentStack.length > 0) {
-            state.blockIndentStack[state.blockIndentStack.length - 1].nodes.push({
               type: 'heading',
               content: targetText,
               level
@@ -244,53 +226,6 @@ const processSpecialTag = (state: ParserState): boolean => {
     return true
   }
   
-  // ブロック字下げ開始
-  const blockIndentStartMatch = tagContent.match(/^ここから([０-９0-9]+)字下げ$/)
-  if (blockIndentStartMatch) {
-    const indentCount = parseJapaneseNumber(blockIndentStartMatch[1])
-
-    // ブロック字下げ開始タグとして空行を追加
-    addNode(state, {
-      type: 'block_indent_start',
-      indent: indentCount
-    })
-
-    state.blockIndentStack.push({ indent: indentCount, nodes: [] })
-    state.currentPosition = tagEnd + 1
-    return true
-  }
-  
-  // ブロック字下げ終了
-  if (tagContent === 'ここで字下げ終わり') {
-    const indentContext = state.blockIndentStack.pop()
-    if (indentContext) {
-      addNode(state, {
-        type: 'block_indent',
-        content: indentContext.nodes,
-        indent: indentContext.indent
-      })
-    }
-
-    // ブロック字下げ終了タグとして空行を追加
-    addNode(state, {
-      type: 'block_indent_end'
-    })
-
-    state.currentPosition = tagEnd + 1
-    return true
-  }
-  
-  // 単純な字下げ（字下げ後のテキストはルビを含む可能性があるため続けて処理）
-  const simpleIndentMatch = tagContent.match(/^([０-９0-9]+)字下げ$/)
-  if (simpleIndentMatch) {
-    const indentCount = parseJapaneseNumber(simpleIndentMatch[1])
-    const spaces = '　'.repeat(indentCount)
-    addNode(state, { type: 'text', content: spaces })
-    state.currentPosition = tagEnd + 1
-    // 字下げの後のテキストを処理するためtrueを返さない
-    // これにより次のトークン処理が続行される
-    return true
-  }
   
   // 特殊文字の説明
   const specialCharMatch = tagContent.match(/^「(.+?)」.+?([0-9-]+)$/)
@@ -364,10 +299,8 @@ const processNormalRuby = (state: ParserState): boolean => {
     const base = text.substring(baseStart, currentPosition)
     
     // 既に追加されているテキストから漢字部分を削除
-    const currentNodes = state.textSizeStack.length > 0 
+    const currentNodes = state.textSizeStack.length > 0
       ? state.textSizeStack[state.textSizeStack.length - 1].nodes
-      : state.blockIndentStack.length > 0
-      ? state.blockIndentStack[state.blockIndentStack.length - 1].nodes
       : state.nodes
     
     // 最後のテキストノードから base を削除
@@ -408,11 +341,9 @@ const addNode = (state: ParserState, node: AozoraNode): void => {
   // スタックがある場合はスタックに追加
   if (state.textSizeStack.length > 0) {
     state.textSizeStack[state.textSizeStack.length - 1].nodes.push(node)
-  } else if (state.blockIndentStack.length > 0) {
-    state.blockIndentStack[state.blockIndentStack.length - 1].nodes.push(node)
   } else {
     // 通常のノード追加
-    if (node.type === 'text' && state.nodes.length > 0 && 
+    if (node.type === 'text' && state.nodes.length > 0 &&
         state.nodes[state.nodes.length - 1].type === 'text') {
       // 連続するテキストノードは結合
       (state.nodes[state.nodes.length - 1] as { type: 'text', content: string }).content += node.content
@@ -430,16 +361,6 @@ const flushStacks = (state: ParserState): void => {
       type: 'text_size',
       content: sizeContext.nodes,
       size: sizeContext.size
-    })
-  }
-  
-  // 未完了のブロック字下げをフラッシュ
-  while (state.blockIndentStack.length > 0) {
-    const indentContext = state.blockIndentStack.pop()!
-    state.nodes.push({
-      type: 'block_indent',
-      content: indentContext.nodes,
-      indent: indentContext.indent
     })
   }
 }
